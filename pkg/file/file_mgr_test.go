@@ -9,7 +9,6 @@ import (
 )
 
 func TestNewFileMgr(t *testing.T) {
-	t.Parallel()
 	const (
 		dbDir     = "test"
 		blockSize = 4096
@@ -30,7 +29,6 @@ func TestNewFileMgr(t *testing.T) {
 }
 
 func TestFileMgr(t *testing.T) {
-	t.Parallel()
 	const (
 		blockSize    = 4096
 		dbDir        = "test"
