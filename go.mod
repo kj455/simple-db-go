@@ -2,7 +2,10 @@ module github.com/kj455/db
 
 go 1.22.1
 
-require github.com/stretchr/testify v1.9.0
+require (
+	github.com/stretchr/testify v1.9.0
+	go.uber.org/mock v0.4.0
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

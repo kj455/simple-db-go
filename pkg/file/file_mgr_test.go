@@ -48,11 +48,11 @@ func TestFileMgr(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		fn   func(*testing.T, *FileMgr)
+		fn   func(*testing.T, *FileMgrImpl)
 	}{
 		{
 			name: "Read after Write",
-			fn: func(t *testing.T, mgr *FileMgr) {
+			fn: func(t *testing.T, mgr *FileMgrImpl) {
 				id := NewBlockId(testFilename, 0)
 				page := NewPage(blockSize)
 				page.SetString(0, "hello")
@@ -67,7 +67,7 @@ func TestFileMgr(t *testing.T) {
 		},
 		{
 			name: "Read non-existent file",
-			fn: func(t *testing.T, mgr *FileMgr) {
+			fn: func(t *testing.T, mgr *FileMgrImpl) {
 				id := NewBlockId("non-existent-file", 0)
 				page := NewPage(blockSize)
 				err := mgr.Read(id, page)
@@ -76,11 +76,11 @@ func TestFileMgr(t *testing.T) {
 		},
 		{
 			name: "Append",
-			fn: func(t *testing.T, mgr *FileMgr) {
+			fn: func(t *testing.T, mgr *FileMgrImpl) {
 				id, err := mgr.Append(testFilename)
 				assert.NoError(t, err)
-				assert.Equal(t, testFilename, id.Filename())
-				assert.Equal(t, 0, id.Number())
+				assert.Equal(t, testFilename, id.filename)
+				assert.Equal(t, 0, id.blockNum)
 			},
 		},
 	}

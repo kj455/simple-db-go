@@ -2,30 +2,37 @@ package file
 
 import "fmt"
 
-type BlockId struct {
+type BlockId interface {
+	Filename() string
+	Number() int
+	Equals(other BlockId) bool
+	String() string
+}
+
+type BlockIdImpl struct {
 	filename string
 	blockNum int
 }
 
-func NewBlockId(filename string, blockNum int) *BlockId {
-	return &BlockId{
+func NewBlockId(filename string, blockNum int) *BlockIdImpl {
+	return &BlockIdImpl{
 		filename: filename,
 		blockNum: blockNum,
 	}
 }
 
-func (b *BlockId) Filename() string {
+func (b *BlockIdImpl) Filename() string {
 	return b.filename
 }
 
-func (b *BlockId) Number() int {
+func (b *BlockIdImpl) Number() int {
 	return b.blockNum
 }
 
-func (b *BlockId) Equals(other *BlockId) bool {
-	return b.filename == other.filename && b.blockNum == other.blockNum
+func (b *BlockIdImpl) Equals(other BlockId) bool {
+	return b.filename == other.Filename() && b.blockNum == other.Number()
 }
 
-func (b *BlockId) String() string {
+func (b *BlockIdImpl) String() string {
 	return fmt.Sprintf("[file %s, block %d]", b.filename, b.blockNum)
 }
