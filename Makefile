@@ -1,5 +1,7 @@
-PKG ?= ./...
+PKG := $(shell go list ./... | grep -v '/mock$$')
 
+print-pkg:
+	@echo $(PKG)
 test:
 	go test -v $(PKG)
 testw:
@@ -15,7 +17,6 @@ mockgen:
 		mkdir -p "$$dest_dir"; \
 		mockgen -source="$$file" -destination="$$dest_dir/$$(basename "$$file")" -package=mock; \
 	done' sh {} +
-
 fmt:
 	go fmt $(PKG)
 
