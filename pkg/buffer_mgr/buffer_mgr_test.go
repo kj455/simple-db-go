@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kj455/db/pkg/buffer/buffer"
-	bmock "github.com/kj455/db/pkg/buffer/buffer/mock"
+	"github.com/kj455/db/pkg/buffer"
+	bmock "github.com/kj455/db/pkg/buffer/mock"
 	fmock "github.com/kj455/db/pkg/file/mock"
 	lmock "github.com/kj455/db/pkg/log/mock"
 	tmock "github.com/kj455/db/pkg/time/mock"

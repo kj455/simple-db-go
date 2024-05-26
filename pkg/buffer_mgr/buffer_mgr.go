@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kj455/db/pkg/buffer/buffer"
+	"github.com/kj455/db/pkg/buffer"
 	"github.com/kj455/db/pkg/file"
 	dtime "github.com/kj455/db/pkg/time"
 )
