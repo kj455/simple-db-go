@@ -9,13 +9,25 @@ import (
 const defaultCharset = "us-ascii"
 
 type Page interface {
-	GetInt(offset int) uint32
-	SetInt(offset int, value uint32)
-	GetBytes(offset int) []byte
-	SetBytes(offset int, value []byte)
-	GetString(offset int) string
-	SetString(offset int, value string)
+	ReadWritePage
 	Contents() *bytes.Buffer
+}
+
+type ReadWritePage interface {
+	ReadPage
+	WritePage
+}
+
+type ReadPage interface {
+	GetInt(offset int) uint32
+	GetBytes(offset int) []byte
+	GetString(offset int) string
+}
+
+type WritePage interface {
+	SetInt(offset int, value uint32)
+	SetBytes(offset int, value []byte)
+	SetString(offset int, value string)
 }
 
 type PageImpl struct {
