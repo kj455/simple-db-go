@@ -10,6 +10,7 @@ import (
 type Buffer interface {
 	Block() file.BlockId
 	IsPinned() bool
+	Contents() file.ReadPage
 	WriteContents(txNum, lsn int, write func(p file.ReadWritePage))
 	ModifyingTx() int
 	AssignToBlock(block file.BlockId) error

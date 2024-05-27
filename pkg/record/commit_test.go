@@ -53,7 +53,7 @@ func TestCommitRecordString(t *testing.T) {
 	assert.Equal(t, "<COMMIT 1>", record.String())
 }
 
-func TestCommitRecordWriteToLog(t *testing.T) {
+func TestWriteCommitRecordToLog(t *testing.T) {
 	const (
 		txNum = 1
 		lsn   = 2
@@ -66,7 +66,7 @@ func TestCommitRecordWriteToLog(t *testing.T) {
 		0, 0, 0, 1, // txNum
 	}).Return(lsn, nil)
 
-	got, err := CommitRecordWriteToLog(lm, txNum)
+	got, err := WriteCommitRecordToLog(lm, txNum)
 
 	assert.NoError(t, err)
 	assert.Equal(t, lsn, got)

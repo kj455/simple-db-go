@@ -10,7 +10,7 @@ import (
 type LogMgr interface {
 	Append(record []byte) (int, error)
 	Flush(lsn int) error
-	Iterator() (*LogIteratorImpl, error)
+	Iterator() (LogIterator, error)
 }
 
 type LogMgrImpl struct {
@@ -80,7 +80,7 @@ func (lm *LogMgrImpl) Flush(lsn int) error {
 	return lm.flush()
 }
 
-func (lm *LogMgrImpl) Iterator() (*LogIteratorImpl, error) {
+func (lm *LogMgrImpl) Iterator() (LogIterator, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	err := lm.flush()

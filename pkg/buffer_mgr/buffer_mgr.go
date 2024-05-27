@@ -16,7 +16,7 @@ type BufferMgr interface {
 	Pin(block file.BlockId) (buffer.Buffer, error)
 	Unpin(buff buffer.Buffer)
 	AvailableNum() int
-	FlushAll(txNum int)
+	FlushAll(txNum int) error
 }
 
 type BufferMgrImpl struct {
@@ -82,14 +82,18 @@ func (bm *BufferMgrImpl) AvailableNum() int {
 	return bm.availableNum
 }
 
-func (bm *BufferMgrImpl) FlushAll(txNum int) {
+func (bm *BufferMgrImpl) FlushAll(txNum int) error {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	for _, b := range bm.pool {
 		if b.ModifyingTx() == txNum {
-			b.Flush()
+			err := b.Flush()
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (bm *BufferMgrImpl) wait() {

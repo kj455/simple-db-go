@@ -36,7 +36,7 @@ func (r *CommitRecord) String() string {
 	return fmt.Sprintf("<COMMIT %d>", r.txNum)
 }
 
-func CommitRecordWriteToLog(lm log.LogMgr, txNum int) (int, error) {
+func WriteCommitRecordToLog(lm log.LogMgr, txNum int) (int, error) {
 	const txNumSize = 4
 	record := make([]byte, OpSize+txNumSize)
 	p := file.NewPageFromBytes(record)
