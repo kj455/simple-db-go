@@ -1,4 +1,4 @@
-package record
+package transaction
 
 import (
 	"github.com/kj455/db/pkg/file"

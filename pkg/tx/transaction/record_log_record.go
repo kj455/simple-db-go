@@ -1,6 +1,8 @@
-package record
+package transaction
 
 import (
+	"fmt"
+
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/tx"
 )
@@ -27,6 +29,7 @@ type LogRecord interface {
 func NewLogRecord(bytes []byte) LogRecord {
 	p := file.NewPageFromBytes(bytes)
 	op := Op(p.GetInt(0))
+	fmt.Println("op", op)
 	switch op {
 	case CHECKPOINT:
 		return NewCheckpointRecord()

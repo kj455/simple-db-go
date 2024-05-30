@@ -1,4 +1,4 @@
-package lock
+package transaction
 
 import (
 	"fmt"
@@ -12,12 +12,6 @@ import (
 const (
 	DEFAULT_MAX_WAIT_TIME = 10 * time.Second
 )
-
-type Lock interface {
-	SLock(block file.BlockId) error
-	XLock(block file.BlockId) error
-	Unlock(block file.BlockId)
-}
 
 type LockImpl struct {
 	locks       map[file.BlockId]lockState
@@ -49,7 +43,7 @@ func NewLock(p NewLockParams) *LockImpl {
 func (l *LockImpl) SLock(block file.BlockId) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	now := time.Now()
+	now := l.time.Now()
 	for l.hasXlock(block) && !l.hasWaitedTooLong(now) {
 		l.cond.Wait()
 	}
@@ -69,7 +63,7 @@ func (l *LockImpl) XLock(block file.BlockId) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	now := time.Now()
+	now := l.time.Now()
 	// Concurrency manager will always obtain an SLock on the block before requesting the XLock.
 	// So, a value higher than 1 indicates that some other transaction also has a lock on this block.
 	for l.hasOtherSLocks(block) && !l.hasWaitedTooLong(now) {
@@ -78,7 +72,7 @@ func (l *LockImpl) XLock(block file.BlockId) error {
 	if l.hasOtherSLocks(block) {
 		return fmt.Errorf("lock: XLock: block %v has other S locks", block)
 	}
-	l.locks[block] = X_LOCKED
+	l.locks[block] = LOCK_STATE_X_LOCKED
 	return nil
 }
 
@@ -106,11 +100,11 @@ func (l *LockImpl) hasOtherSLocks(block file.BlockId) bool {
 func (lt *LockImpl) getLockState(block file.BlockId) lockState {
 	state, ok := lt.locks[block]
 	if !ok {
-		return UNLOCKED
+		return LOCK_STATE_UNLOCKED
 	}
 	return state
 }
 
 func (l *LockImpl) hasWaitedTooLong(startTime time.Time) bool {
-	return time.Since(startTime) > l.maxWaitTime
+	return l.time.Since(startTime) > l.maxWaitTime
 }

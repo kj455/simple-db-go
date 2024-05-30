@@ -1,11 +1,9 @@
-package concurrency
+package transaction
 
 import (
 	"testing"
 
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/lock/mock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -14,18 +12,6 @@ func TestConcurrency_NewConcurrencyMgr(t *testing.T) {
 	t.Parallel()
 	cm := NewConcurrencyMgr()
 	assert.Equal(t, 0, len(cm.Locks))
-}
-
-type mocks struct {
-	lock  *lmock.MockLock
-	block *fmock.MockBlockId
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{
-		lock:  lmock.NewMockLock(ctrl),
-		block: fmock.NewMockBlockId(ctrl),
-	}
 }
 
 func newMockConcurrencyMgr(m *mocks) *ConcurrencyMgrImpl {
@@ -49,17 +35,17 @@ func TestConcurrency_SLock(t *testing.T) {
 			},
 			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, SLock, cm.Locks[b])
+				assert.Equal(t, LOCK_TYPE_SLOCK, cm.Locks[b])
 			},
 		},
 		{
 			name: "already SLocked",
 			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = SLock
+				cm.Locks[m.block] = LOCK_TYPE_SLOCK
 			},
 			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, SLock, cm.Locks[b])
+				assert.Equal(t, LOCK_TYPE_SLOCK, cm.Locks[b])
 			},
 		},
 	}
@@ -92,17 +78,17 @@ func TestConcurrency_XLock(t *testing.T) {
 			},
 			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, XLock, cm.Locks[b])
+				assert.Equal(t, LOCK_TYPE_XLOCK, cm.Locks[b])
 			},
 		},
 		{
 			name: "already XLocked",
 			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = XLock
+				cm.Locks[m.block] = LOCK_TYPE_XLOCK
 			},
 			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, XLock, cm.Locks[b])
+				assert.Equal(t, LOCK_TYPE_XLOCK, cm.Locks[b])
 			},
 		},
 	}
@@ -130,7 +116,7 @@ func TestConcurrency_Release(t *testing.T) {
 		{
 			name: "release",
 			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = XLock
+				cm.Locks[m.block] = LOCK_TYPE_XLOCK
 				m.lock.EXPECT().Unlock(m.block)
 			},
 			expect: func(cm *ConcurrencyMgrImpl) {

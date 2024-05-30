@@ -1,32 +1,26 @@
-package concurrency
+package transaction
 
 import (
 	"fmt"
 
 	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/lock"
+	"github.com/kj455/db/pkg/tx"
 )
 
 type LockType string
 
 const (
-	SLock LockType = "S"
-	XLock LockType = "X"
+	LOCK_TYPE_SLOCK LockType = "S"
+	LOCK_TYPE_XLOCK LockType = "X"
 )
 
-type ConcurrencyMgr interface {
-	SLock(blk file.BlockId) error
-	XLock(blk file.BlockId) error
-	Release()
-}
-
 type ConcurrencyMgrImpl struct {
-	l     lock.Lock
+	l     tx.Lock
 	Locks map[file.BlockId]LockType
 }
 
 func NewConcurrencyMgr() *ConcurrencyMgrImpl {
-	l := lock.NewLock(lock.NewLockParams{})
+	l := NewLock(NewLockParams{})
 	return &ConcurrencyMgrImpl{
 		l:     l,
 		Locks: make(map[file.BlockId]LockType),
@@ -40,7 +34,7 @@ func (cm *ConcurrencyMgrImpl) SLock(blk file.BlockId) error {
 	if err := cm.l.SLock(blk); err != nil {
 		return fmt.Errorf("concurrency: SLock: %v", err)
 	}
-	cm.Locks[blk] = SLock
+	cm.Locks[blk] = LOCK_TYPE_SLOCK
 	return nil
 }
 
@@ -54,7 +48,7 @@ func (cm *ConcurrencyMgrImpl) XLock(blk file.BlockId) error {
 	if err := cm.l.XLock(blk); err != nil {
 		return fmt.Errorf("concurrency: XLock: %v", err)
 	}
-	cm.Locks[blk] = XLock
+	cm.Locks[blk] = LOCK_TYPE_XLOCK
 	return nil
 }
 
@@ -70,5 +64,5 @@ func (cm *ConcurrencyMgrImpl) HasXLock(blk file.BlockId) bool {
 	if !exists {
 		return false
 	}
-	return lockType == XLock
+	return lockType == LOCK_TYPE_XLOCK
 }

@@ -4,12 +4,6 @@ import (
 	ttime "time"
 )
 
-type Time interface {
-	Now() ttime.Time
-	Sleep(d ttime.Duration)
-	Since(t ttime.Time) ttime.Duration
-}
-
 type timeImpl struct{}
 
 func NewTime() Time {

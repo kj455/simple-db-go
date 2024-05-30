@@ -1,43 +1,13 @@
-package recovery
+package transaction
 
 import (
 	"fmt"
 	"testing"
 
-	bmock "github.com/kj455/db/pkg/buffer/mock"
-	bmmock "github.com/kj455/db/pkg/buffer_mgr/mock"
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/log/mock"
-	"github.com/kj455/db/pkg/record"
-	tmock "github.com/kj455/db/pkg/tx/mock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
-
-type mocks struct {
-	fileMgr   *fmock.MockFileMgr
-	buffer    *bmock.MockBuffer
-	bufferMgr *bmmock.MockBufferMgr
-	page      *fmock.MockPage
-	block     *fmock.MockBlockId
-	logMgr    *lmock.MockLogMgr
-	logIter   *lmock.MockLogIterator
-	tx        *tmock.MockTransaction
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{
-		fileMgr:   fmock.NewMockFileMgr(ctrl),
-		buffer:    bmock.NewMockBuffer(ctrl),
-		bufferMgr: bmmock.NewMockBufferMgr(ctrl),
-		page:      fmock.NewMockPage(ctrl),
-		block:     fmock.NewMockBlockId(ctrl),
-		logMgr:    lmock.NewMockLogMgr(ctrl),
-		logIter:   lmock.NewMockLogIterator(ctrl),
-		tx:        tmock.NewMockTransaction(ctrl),
-	}
-}
 
 func TestNewRecoveryMgr(t *testing.T) {
 	const txNum = 1
@@ -82,9 +52,9 @@ func TestRecoveryMgrImpl_Commit(t *testing.T) {
 func newStartRecordBytes(t *testing.T, txNum int) []byte {
 	rec := make([]byte, 8)
 	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(record.START))
+	p.SetInt(0, uint32(START))
 	p.SetInt(4, uint32(txNum))
-	s := record.NewStartRecord(file.NewPageFromBytes(rec))
+	s := NewStartRecord(file.NewPageFromBytes(rec))
 	str := fmt.Sprintf("<START %d>", txNum)
 	assert.Equal(t, str, s.String())
 	return rec
@@ -99,13 +69,13 @@ func newSetIntRecordBytes(t *testing.T, txNum int) []byte {
 	)
 	rec := make([]byte, 256)
 	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(record.SET_INT))
+	p.SetInt(0, uint32(SET_INT))
 	p.SetInt(4, uint32(txNum))
 	p.SetString(8, filename)
 	p.SetInt(8+file.MaxLength(len(filename)), uint32(blockNum))
 	p.SetInt(8+file.MaxLength(len(filename))+4, uint32(offset))
 	p.SetInt(8+file.MaxLength(len(filename))+8, uint32(value))
-	si := record.NewSetIntRecord(file.NewPageFromBytes(rec))
+	si := NewSetIntRecord(file.NewPageFromBytes(rec))
 	str := fmt.Sprintf("<SET_INT %d %s %d %d>", txNum, file.NewBlockId(filename, blockNum), offset, value)
 	assert.Equal(t, str, si.String())
 	return rec
@@ -114,9 +84,9 @@ func newSetIntRecordBytes(t *testing.T, txNum int) []byte {
 func newCommitRecordBytes(t *testing.T, txNum int) []byte {
 	rec := make([]byte, 8)
 	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(record.COMMIT))
+	p.SetInt(0, uint32(COMMIT))
 	p.SetInt(4, uint32(txNum))
-	c := record.NewCommitRecord(file.NewPageFromBytes(rec))
+	c := NewCommitRecord(file.NewPageFromBytes(rec))
 	str := fmt.Sprintf("<COMMIT %d>", txNum)
 	assert.Equal(t, str, c.String())
 	return rec
@@ -125,8 +95,8 @@ func newCommitRecordBytes(t *testing.T, txNum int) []byte {
 func newCheckpointRecordBytes(t *testing.T) []byte {
 	rec := make([]byte, 4)
 	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(record.CHECKPOINT))
-	cp := record.NewCheckpointRecord()
+	p.SetInt(0, uint32(CHECKPOINT))
+	cp := NewCheckpointRecord()
 	assert.Equal(t, "<CHECKPOINT>", cp.String())
 	return rec
 }

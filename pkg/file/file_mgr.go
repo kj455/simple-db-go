@@ -7,14 +7,6 @@ import (
 	"sync"
 )
 
-type FileMgr interface {
-	Read(id BlockId, p Page) error
-	Write(id BlockId, p Page) error
-	Append(filename string) (*BlockIdImpl, error)
-	Length(filename string) (int, error)
-	BlockSize() int
-}
-
 type FileMgrImpl struct {
 	dbDir     string
 	blockSize int

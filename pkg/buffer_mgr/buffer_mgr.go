@@ -12,13 +12,6 @@ import (
 
 const defaultMaxWaitTime = 10 * time.Second
 
-type BufferMgr interface {
-	Pin(block file.BlockId) (buffer.Buffer, error)
-	Unpin(buff buffer.Buffer)
-	AvailableNum() int
-	FlushAll(txNum int) error
-}
-
 type BufferMgrImpl struct {
 	pool         []buffer.Buffer
 	availableNum int

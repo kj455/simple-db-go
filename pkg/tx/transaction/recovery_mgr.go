@@ -1,4 +1,4 @@
-package recovery
+package transaction
 
 import (
 	"fmt"
@@ -6,18 +6,8 @@ import (
 	"github.com/kj455/db/pkg/buffer"
 	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/record"
 	"github.com/kj455/db/pkg/tx"
 )
-
-// RecoveryMgr is an interface for recovery manager - undo only
-type RecoveryMgr interface {
-	Commit() error
-	Rollback() error
-	Recover() error
-	SetInt(buff buffer.Buffer, offset int, val int) (int, error)
-	SetString(buff buffer.Buffer, offset int, val string) (int, error)
-}
 
 type RecoveryMgrImpl struct {
 	lm    log.LogMgr
@@ -33,7 +23,7 @@ func NewRecoveryMgr(tx tx.Transaction, txNum int, lm log.LogMgr, bm buffermgr.Bu
 		tx:    tx,
 		txNum: txNum,
 	}
-	_, err := record.WriteStartRecordToLog(lm, txNum)
+	_, err := WriteStartRecordToLog(lm, txNum)
 	if err != nil {
 		return nil, fmt.Errorf("recovery: failed to write start record to log: %v", err)
 	}
@@ -46,7 +36,7 @@ func (rm *RecoveryMgrImpl) Commit() error {
 	if err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := record.WriteCommitRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteCommitRecordToLog(rm.lm, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write commit record to log: %v", err)
 	}
@@ -62,7 +52,7 @@ func (rm *RecoveryMgrImpl) Rollback() error {
 	if err := rm.bm.FlushAll(rm.txNum); err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := record.WriteRollbackRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteRollbackRecordToLog(rm.lm, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write rollback record to log: %v", err)
 	}
@@ -81,7 +71,7 @@ func (rm *RecoveryMgrImpl) Recover() error {
 	if err := rm.bm.FlushAll(rm.txNum); err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := record.WriteCommitRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteCommitRecordToLog(rm.lm, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write commit record to log: %v", err)
 	}
@@ -90,11 +80,11 @@ func (rm *RecoveryMgrImpl) Recover() error {
 }
 
 func (rm *RecoveryMgrImpl) SetInt(buff buffer.Buffer, offset int, val int) (int, error) {
-	return record.WriteSetIntRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
+	return WriteSetIntRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
 }
 
 func (rm *RecoveryMgrImpl) SetString(buff buffer.Buffer, offset int, val string) (int, error) {
-	return record.WriteSetStringRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
+	return WriteSetStringRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
 }
 
 func (rm *RecoveryMgrImpl) rollback() error {
@@ -107,11 +97,11 @@ func (rm *RecoveryMgrImpl) rollback() error {
 		if err != nil {
 			return err
 		}
-		rec := record.NewLogRecord(bytes)
+		rec := NewLogRecord(bytes)
 		if rec.TxNum() != rm.txNum {
 			continue
 		}
-		if rec.Op() == record.START {
+		if rec.Op() == START {
 			return nil
 		}
 		rec.Undo(rm.tx)
@@ -130,11 +120,11 @@ func (rm *RecoveryMgrImpl) recover() error {
 		if err != nil {
 			return err
 		}
-		rec := record.NewLogRecord(bytes)
+		rec := NewLogRecord(bytes)
 		switch rec.Op() {
-		case record.CHECKPOINT:
+		case CHECKPOINT:
 			return nil
-		case record.COMMIT, record.ROLLBACK:
+		case COMMIT, ROLLBACK:
 			finishedTxs[rec.TxNum()] = true
 			continue
 		default:

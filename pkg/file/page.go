@@ -8,11 +8,6 @@ import (
 
 const defaultCharset = "us-ascii"
 
-type Page interface {
-	ReadWritePage
-	Contents() *bytes.Buffer
-}
-
 type ReadWritePage interface {
 	ReadPage
 	WritePage

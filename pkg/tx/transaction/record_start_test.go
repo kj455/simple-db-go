@@ -1,4 +1,4 @@
-package record
+package transaction
 
 import (
 	"testing"
@@ -9,51 +9,51 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNewRollbackRecord(t *testing.T) {
+func TestNewStartRecord(t *testing.T) {
 	const txNum = 1
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	page := fmock.NewMockPage(ctrl)
 	page.EXPECT().GetInt(OpSize).Return(uint32(txNum))
 
-	record := NewRollbackRecord(page)
+	record := NewStartRecord(page)
 
-	assert.Equal(t, ROLLBACK, record.Op())
+	assert.Equal(t, START, record.Op())
 	assert.Equal(t, txNum, record.TxNum())
 }
 
-func TestRollbackRecordOp(t *testing.T) {
-	record := RollbackRecord{}
-	assert.Equal(t, ROLLBACK, record.Op())
+func TestStartRecordOp(t *testing.T) {
+	record := StartRecord{}
+	assert.Equal(t, START, record.Op())
 }
 
-func TestRollbackRecordTxNum(t *testing.T) {
+func TestStartRecordTxNum(t *testing.T) {
 	const txNum = 1
-	record := RollbackRecord{
+	record := StartRecord{
 		txNum: txNum,
 	}
 	assert.Equal(t, txNum, record.TxNum())
 }
 
-func TestRollbackRecordUndo(t *testing.T) {
+func TestStartRecordUndo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	const txNum = 1
-	record := RollbackRecord{
+	record := StartRecord{
 		txNum: txNum,
 	}
 	record.Undo(nil)
 }
 
-func TestRollbackRecordString(t *testing.T) {
+func TestStartRecordString(t *testing.T) {
 	const txNum = 1
-	record := RollbackRecord{
+	record := StartRecord{
 		txNum: txNum,
 	}
-	assert.Equal(t, "<ROLLBACK 1>", record.String())
+	assert.Equal(t, "<START 1>", record.String())
 }
 
-func TestWriteRollbackRecordToLog(t *testing.T) {
+func TestWriteStartRecordToLog(t *testing.T) {
 	const (
 		txNum = 1
 		lsn   = 2
@@ -62,11 +62,11 @@ func TestWriteRollbackRecordToLog(t *testing.T) {
 	defer ctrl.Finish()
 	lm := lmock.NewMockLogMgr(ctrl)
 	lm.EXPECT().Append([]byte{
-		0, 0, 0, 3, // ROLLBACK
+		0, 0, 0, 1, // START
 		0, 0, 0, 1, // txNum
 	}).Return(lsn, nil)
 
-	got, err := WriteRollbackRecordToLog(lm, txNum)
+	got, err := WriteStartRecordToLog(lm, txNum)
 
 	assert.NoError(t, err)
 	assert.Equal(t, lsn, got)

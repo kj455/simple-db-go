@@ -1,13 +1,11 @@
-package bufferlist
+package transaction
 
 import (
 	"testing"
 
 	"github.com/kj455/db/pkg/buffer"
-	bmock "github.com/kj455/db/pkg/buffer/mock"
 	bmmock "github.com/kj455/db/pkg/buffer_mgr/mock"
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -23,29 +21,11 @@ func TestBufferList_NewBufferList(t *testing.T) {
 	assert.Equal(t, bm, bl.bm)
 }
 
-type mocks struct {
-	bm     *bmmock.MockBufferMgr
-	buffer *bmock.MockBuffer
-	block  *fmock.MockBlockId
-	block2 *fmock.MockBlockId
-	block3 *fmock.MockBlockId
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{
-		bm:     bmmock.NewMockBufferMgr(ctrl),
-		buffer: bmock.NewMockBuffer(ctrl),
-		block:  fmock.NewMockBlockId(ctrl),
-		block2: fmock.NewMockBlockId(ctrl),
-		block3: fmock.NewMockBlockId(ctrl),
-	}
-}
-
 func newMockBufferList(m *mocks) *BufferListImpl {
 	return &BufferListImpl{
 		buffers: make(map[file.BlockId]buffer.Buffer),
 		pins:    make([]file.BlockId, 0),
-		bm:      m.bm,
+		bm:      m.bufferMgr,
 	}
 }
 
@@ -98,7 +78,7 @@ func TestBufferList_Pin(t *testing.T) {
 		{
 			name: "Pin",
 			setup: func(m *mocks, bl *BufferListImpl) {
-				m.bm.EXPECT().Pin(m.block).Return(m.buffer, nil)
+				m.bufferMgr.EXPECT().Pin(m.block).Return(m.buffer, nil)
 			},
 			expect: func(m *mocks, bl *BufferListImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(bl.buffers))
@@ -132,7 +112,7 @@ func TestBufferList_Unpin(t *testing.T) {
 			name: "Unpin",
 			setup: func(m *mocks, bl *BufferListImpl) {
 				bl.buffers[m.block] = m.buffer
-				m.bm.EXPECT().Unpin(m.buffer)
+				m.bufferMgr.EXPECT().Unpin(m.buffer)
 				bl.pins = []file.BlockId{m.block, m.block2, m.block3}
 				m.block.EXPECT().Equals(m.block).Return(true)
 				m.block2.EXPECT().Equals(m.block).Return(false)
@@ -178,7 +158,7 @@ func TestBufferList_UnpinAll(t *testing.T) {
 				bl.pins = []file.BlockId{m.block, m.block2, m.block3}
 				bl.buffers[m.block] = m.buffer
 				bl.buffers[m.block3] = m.buffer
-				m.bm.EXPECT().Unpin(m.buffer).Times(2)
+				m.bufferMgr.EXPECT().Unpin(m.buffer).Times(2)
 			},
 			expect: func(m *mocks, bl *BufferListImpl) {
 				assert.Equal(t, 0, len(bl.pins))

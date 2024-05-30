@@ -1,4 +1,4 @@
-package lock
+package transaction
 
 import (
 	"testing"
@@ -12,8 +12,8 @@ func TestUnlocked(t *testing.T) {
 		state    lockState
 		expected bool
 	}{
-		{UNLOCKED, true},
-		{X_LOCKED, false},
+		{LOCK_STATE_UNLOCKED, true},
+		{LOCK_STATE_X_LOCKED, false},
 		{1, false},
 	}
 	for _, tt := range tests {
@@ -27,8 +27,8 @@ func TestIsXLocked(t *testing.T) {
 		state    lockState
 		expected bool
 	}{
-		{UNLOCKED, false},
-		{X_LOCKED, true},
+		{LOCK_STATE_UNLOCKED, false},
+		{LOCK_STATE_X_LOCKED, true},
 		{1, false},
 	}
 	for _, tt := range tests {
@@ -42,8 +42,8 @@ func TestIsSLocked(t *testing.T) {
 		state    lockState
 		expected bool
 	}{
-		{UNLOCKED, false},
-		{X_LOCKED, false},
+		{LOCK_STATE_UNLOCKED, false},
+		{LOCK_STATE_X_LOCKED, false},
 		{1, true},
 		{2, true},
 	}
@@ -58,8 +58,8 @@ func TestIsMultipleSLocked(t *testing.T) {
 		state    lockState
 		expected bool
 	}{
-		{UNLOCKED, false},
-		{X_LOCKED, false},
+		{LOCK_STATE_UNLOCKED, false},
+		{LOCK_STATE_X_LOCKED, false},
 		{1, false},
 		{2, true},
 	}
@@ -75,9 +75,9 @@ func TestNext(t *testing.T) {
 		expected  lockState
 		expectErr bool
 	}{
-		{UNLOCKED, 1, false},
+		{LOCK_STATE_UNLOCKED, 1, false},
 		{1, 2, false},
-		{X_LOCKED, X_LOCKED, true},
+		{LOCK_STATE_X_LOCKED, LOCK_STATE_X_LOCKED, true},
 	}
 
 	for _, test := range tests {

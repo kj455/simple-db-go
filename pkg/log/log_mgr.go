@@ -7,12 +7,6 @@ import (
 	"github.com/kj455/db/pkg/file"
 )
 
-type LogMgr interface {
-	Append(record []byte) (int, error)
-	Flush(lsn int) error
-	Iterator() (LogIterator, error)
-}
-
 type LogMgrImpl struct {
 	filename     string
 	fileMgr      file.FileMgr

@@ -1,4 +1,4 @@
-package lock
+package transaction
 
 import (
 	"sync"
@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
-	tmock "github.com/kj455/db/pkg/time/mock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -26,20 +24,6 @@ func TestNewLock(t *testing.T) {
 		assert.NotNil(t, l)
 		assert.Equal(t, time.Duration(5), l.maxWaitTime)
 	})
-}
-
-type mocks struct {
-	time  *tmock.MockTime
-	block *fmock.MockBlockId
-}
-
-func newMocks(t *testing.T) *mocks {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	return &mocks{
-		time:  tmock.NewMockTime(ctrl),
-		block: fmock.NewMockBlockId(ctrl),
-	}
 }
 
 func newMockLock(m *mocks) *LockImpl {
@@ -73,7 +57,9 @@ func TestSLock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newMocks(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := newMocks(ctrl)
 			l := newMockLock(m)
 			tt.setup(m, l)
 			err := l.SLock(m.block)
@@ -88,23 +74,36 @@ func TestSLock(t *testing.T) {
 }
 
 func TestSLock_Wait(t *testing.T) {
+	const maxWaitTime = 1 * time.Second
 	t.Parallel()
-	m := newMocks(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := newMocks(ctrl)
+	now := time.Date(2024, 5, 27, 0, 0, 0, 0, time.UTC)
+	m.time.EXPECT().Now().Return(now).AnyTimes()
+	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
 	l := NewLock(NewLockParams{
 		Time: m.time,
 	})
-	err := l.XLock(m.block) // XLock を取得しておく
+
+	// XLock を取得しておく
+	err := l.XLock(m.block)
 	assert.NoError(t, err)
+
+	// SLock の取得を試みるが、XLock が解放されるまで待機
 	done := make(chan bool)
 	go func() {
-		err := l.SLock(m.block) // SLock の取得を試みるが、XLock が解放されるまで待機
+		err := l.SLock(m.block)
 		assert.NoError(t, err)
 		done <- true
 	}()
+
 	time.Sleep(100 * time.Millisecond) // 少し待機
+
 	go func() {
 		l.Unlock(m.block) // 別のゴルーチンで XLock を解放
 	}()
+
 	select {
 	case <-done:
 		// SLock が取得できた場合
@@ -131,13 +130,15 @@ func TestXLock(t *testing.T) {
 			},
 			expect: func(l *LockImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(l.locks))
-				assert.Equal(t, X_LOCKED, l.locks[b])
+				assert.Equal(t, LOCK_STATE_X_LOCKED, l.locks[b])
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newMocks(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := newMocks(ctrl)
 			l := newMockLock(m)
 			tt.setup(m, l)
 			err := l.XLock(m.block)
@@ -152,32 +153,47 @@ func TestXLock(t *testing.T) {
 }
 
 func TestXLock_Wait(t *testing.T) {
-	const lockNum = 2
+	const (
+		lockNum     = 2
+		maxWaitTime = 1 * time.Second
+	)
 	t.Parallel()
-	m := newMocks(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := newMocks(ctrl)
+	now := time.Date(2024, 5, 27, 0, 0, 0, 0, time.UTC)
+	m.time.EXPECT().Now().Return(now).AnyTimes()
+	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
 	l := NewLock(NewLockParams{
 		Time: m.time,
 	})
+
 	// SLock を2つ取得しておく
 	for i := 0; i < lockNum; i++ {
 		err := l.SLock(m.block)
 		assert.NoError(t, err)
 	}
+
+	// XLock の取得を試みるが、SLock が解放されるまで待機
 	done := make(chan bool)
 	go func() {
-		err := l.XLock(m.block) // XLock の取得を試みるが、SLock が解放されるまで待機
+		err := l.XLock(m.block)
 		assert.NoError(t, err)
 		done <- true
 	}()
+
 	time.Sleep(100 * time.Millisecond) // 少し待機
+
+	// SLock を解放し、Broadcast する
 	for i := 0; i < lockNum; i++ {
-		l.Unlock(m.block) // 別のゴルーチンで SLock を解放
+		l.Unlock(m.block)
 	}
+
 	select {
 	case <-done:
 		// XLock が取得できた場合
 		assert.Equal(t, 1, len(l.locks))
-		assert.Equal(t, X_LOCKED, l.locks[m.block])
+		assert.Equal(t, LOCK_STATE_X_LOCKED, l.locks[m.block])
 	case <-time.After(1 * time.Second):
 		t.Fatal("XLock did not proceed in time")
 	}
@@ -207,7 +223,7 @@ func TestUnlock(t *testing.T) {
 			},
 			expect: func(l *LockImpl, b file.BlockId) {
 				assert.Equal(t, 0, len(l.locks))
-				assert.Equal(t, UNLOCKED, l.locks[b])
+				assert.Equal(t, LOCK_STATE_UNLOCKED, l.locks[b])
 			},
 		},
 		{
@@ -220,7 +236,9 @@ func TestUnlock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newMocks(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := newMocks(ctrl)
 			l := newMockLock(m)
 			tt.setup(m, l)
 			l.Unlock(m.block)

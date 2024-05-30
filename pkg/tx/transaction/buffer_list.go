@@ -1,4 +1,4 @@
-package bufferlist
+package transaction
 
 import (
 	"fmt"
@@ -7,13 +7,6 @@ import (
 	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/file"
 )
-
-type BufferList interface {
-	GetBuffer(block file.BlockId) (buffer.Buffer, bool)
-	Pin(block file.BlockId)
-	Unpin(block file.BlockId)
-	UnpinAll()
-}
 
 type BufferListImpl struct {
 	buffers map[file.BlockId]buffer.Buffer
