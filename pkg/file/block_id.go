@@ -2,13 +2,6 @@ package file
 
 import "fmt"
 
-type BlockId interface {
-	Filename() string
-	Number() int
-	Equals(other BlockId) bool
-	String() string
-}
-
 type BlockIdImpl struct {
 	filename string
 	blockNum int

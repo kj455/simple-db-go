@@ -2,6 +2,7 @@ package buffermgr
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,13 +12,6 @@ import (
 )
 
 const defaultMaxWaitTime = 10 * time.Second
-
-type BufferMgr interface {
-	Pin(block file.BlockId) (buffer.Buffer, error)
-	Unpin(buff buffer.Buffer)
-	AvailableNum() int
-	FlushAll(txNum int)
-}
 
 type BufferMgrImpl struct {
 	pool         []buffer.Buffer
@@ -33,17 +27,31 @@ type NewBufferMgrParams struct {
 	Time        dtime.Time
 }
 
-func NewBufferMgr(p *NewBufferMgrParams) *BufferMgrImpl {
-	maxWaitTime := p.MaxWaitTime
-	if p.MaxWaitTime == 0 {
-		maxWaitTime = defaultMaxWaitTime
+type Opt func(*BufferMgrImpl)
+
+func WithMaxWaitTime(t time.Duration) Opt {
+	return func(b *BufferMgrImpl) {
+		b.maxWaitTime = t
 	}
-	return &BufferMgrImpl{
-		pool:         p.Buffers,
-		availableNum: len(p.Buffers),
-		time:         p.Time,
-		maxWaitTime:  maxWaitTime,
+}
+
+func WithTime(t dtime.Time) Opt {
+	return func(b *BufferMgrImpl) {
+		b.time = t
 	}
+}
+
+func NewBufferMgr(buffs []buffer.Buffer, opts ...Opt) *BufferMgrImpl {
+	bm := &BufferMgrImpl{
+		pool:         buffs,
+		availableNum: len(buffs),
+		time:         dtime.NewTime(),
+		maxWaitTime:  defaultMaxWaitTime,
+	}
+	for _, opt := range opts {
+		opt(bm)
+	}
+	return bm
 }
 
 func (bm *BufferMgrImpl) Pin(block file.BlockId) (buffer.Buffer, error) {
@@ -82,14 +90,18 @@ func (bm *BufferMgrImpl) AvailableNum() int {
 	return bm.availableNum
 }
 
-func (bm *BufferMgrImpl) FlushAll(txNum int) {
+func (bm *BufferMgrImpl) FlushAll(txNum int) error {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	for _, b := range bm.pool {
 		if b.ModifyingTx() == txNum {
-			b.Flush()
+			err := b.Flush()
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (bm *BufferMgrImpl) wait() {
@@ -105,10 +117,12 @@ func (bm *BufferMgrImpl) tryPin(block file.BlockId) buffer.Buffer {
 	if buff == nil {
 		buff = bm.findUnpinnedBuffer()
 		if buff == nil {
+			fmt.Println("buffer: no unpinned buffer")
 			return nil
 		}
 		err := buff.AssignToBlock(block)
 		if err != nil {
+			fmt.Println("buffer: failed to assign block to buff", err)
 			return nil
 		}
 	}

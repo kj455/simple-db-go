@@ -6,11 +6,6 @@ import (
 	"github.com/kj455/db/pkg/file"
 )
 
-type LogIterator interface {
-	HasNext() bool
-	Next() ([]byte, error)
-}
-
 type LogIteratorImpl struct {
 	fm        file.FileMgr
 	block     file.BlockId

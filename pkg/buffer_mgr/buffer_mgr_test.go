@@ -1,15 +1,19 @@
 package buffermgr
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/kj455/db/pkg/buffer"
 	bmock "github.com/kj455/db/pkg/buffer/mock"
+	"github.com/kj455/db/pkg/file"
 	fmock "github.com/kj455/db/pkg/file/mock"
+	"github.com/kj455/db/pkg/log"
 	lmock "github.com/kj455/db/pkg/log/mock"
 	tmock "github.com/kj455/db/pkg/time/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -46,16 +50,49 @@ func TestNewBufferMgr(t *testing.T) {
 		buffers[i] = buffer.NewBuffer(fm, lm, blockSize)
 	}
 
-	bufferMgr := NewBufferMgr(&NewBufferMgrParams{
-		Buffers:     buffers,
-		MaxWaitTime: waitTime,
-		Time:        tm,
-	})
+	bufferMgr := NewBufferMgr(buffers, WithMaxWaitTime(waitTime), WithTime(tm), WithMaxWaitTime(waitTime))
 
 	assert.NotNil(t, bufferMgr)
 	assert.Equal(t, buffNum, bufferMgr.AvailableNum())
 	assert.Equal(t, buffNum, len(bufferMgr.pool))
 	assert.Equal(t, waitTime, bufferMgr.maxWaitTime)
+}
+
+func TestBufferFile(t *testing.T) {
+	rootDir := "/tmp"
+	dir := rootDir + "/.tmp"
+	os.MkdirAll(dir, os.ModePerm)
+	defer os.RemoveAll(rootDir)
+
+	fm := file.NewFileMgr(dir, 400)
+	lm, err := log.NewLogMgr(fm, "testlogfile")
+	require.NoError(t, err)
+	buffs := make([]buffer.Buffer, 3)
+	for i := 0; i < 3; i++ {
+		buffs[i] = buffer.NewBuffer(fm, lm, fm.BlockSize())
+	}
+	bm := NewBufferMgr(buffs)
+	blk := file.NewBlockId("testfile", 2)
+	pos1 := 88
+
+	b1, err := bm.Pin(blk)
+	require.NoError(t, err)
+	b1.WriteContents(1, 0, func(p file.ReadWritePage) {
+		p.SetString(pos1, "abcdefghijklm")
+	})
+	size := file.MaxLength(len("abcdefghijklm"))
+	pos2 := pos1 + size
+	b1.WriteContents(1, 0, func(p file.ReadWritePage) {
+		p.SetInt(pos2, 345)
+	})
+	bm.Unpin(b1)
+
+	b2, err := bm.Pin(blk)
+	require.NoError(t, err)
+	p2 := b2.Contents()
+	assert.Equal(t, "abcdefghijklm", p2.GetString(pos1))
+	assert.Equal(t, uint32(345), p2.GetInt(pos2))
+	bm.Unpin(b2)
 }
 
 func TestBufferMgrImpl_Pin(t *testing.T) {
@@ -150,11 +187,7 @@ func TestBufferMgrImpl_Pin(t *testing.T) {
 				buffs[i] = mb
 				mockBuffs[i] = mb
 			}
-			bm := NewBufferMgr(&NewBufferMgrParams{
-				Time:        m.time,
-				Buffers:     buffs,
-				MaxWaitTime: waitTime,
-			})
+			bm := NewBufferMgr(buffs, WithTime(m.time), WithMaxWaitTime(waitTime))
 			tt.setup(m, mockBuffs)
 
 			buff, err := bm.Pin(m.block)
@@ -197,7 +230,7 @@ func TestBufferMgrImpl_Unpin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			buff := bmock.NewMockBuffer(ctrl)
-			bm := NewBufferMgr(&NewBufferMgrParams{})
+			bm := NewBufferMgr([]buffer.Buffer{buff})
 			tt.setup(bm, buff)
 
 			bm.Unpin(buff)
