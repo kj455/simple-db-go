@@ -8,23 +8,6 @@ import (
 
 const defaultCharset = "us-ascii"
 
-type ReadWritePage interface {
-	ReadPage
-	WritePage
-}
-
-type ReadPage interface {
-	GetInt(offset int) uint32
-	GetBytes(offset int) []byte
-	GetString(offset int) string
-}
-
-type WritePage interface {
-	SetInt(offset int, value uint32)
-	SetBytes(offset int, value []byte)
-	SetString(offset int, value string)
-}
-
 type PageImpl struct {
 	buf     *bytes.Buffer
 	charset string
@@ -45,11 +28,14 @@ func NewPageFromBytes(data []byte) *PageImpl {
 }
 
 func (p *PageImpl) GetInt(offset int) uint32 {
-	return binary.BigEndian.Uint32(p.buf.Bytes()[offset:])
+	data := p.buf.Bytes()[offset : offset+4]
+	return binary.BigEndian.Uint32(data)
 }
 
 func (p *PageImpl) SetInt(offset int, value uint32) {
-	binary.BigEndian.PutUint32(p.buf.Bytes()[offset:], value)
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, uint32(value))
+	copy(p.buf.Bytes()[offset:], data)
 }
 
 func (p *PageImpl) GetBytes(offset int) []byte {

@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"fmt"
-
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/tx"
 )
@@ -23,13 +21,12 @@ const OpSize = 4
 type LogRecord interface {
 	Op() Op
 	TxNum() int
-	Undo(tx tx.Transaction)
+	Undo(tx tx.Transaction) error
 }
 
 func NewLogRecord(bytes []byte) LogRecord {
 	p := file.NewPageFromBytes(bytes)
 	op := Op(p.GetInt(0))
-	fmt.Println("op", op)
 	switch op {
 	case CHECKPOINT:
 		return NewCheckpointRecord()

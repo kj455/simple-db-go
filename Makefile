@@ -10,7 +10,7 @@ lint:
 	golangci-lint run
 clean:
 	rm -rf .coverage
-	rm -rf ./pkg/**/mockmak
+	rm -rf ./pkg/**/mock
 coverage:
 	mkdir -p .coverage
 	go test -coverprofile=.coverage/coverage.out $(PKG)
@@ -23,5 +23,3 @@ mockgen:
 	done' sh {} +
 fmt:
 	go fmt $(PKG)
-
-PHONY: test testw lint coverage fmt

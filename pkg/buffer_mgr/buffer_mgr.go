@@ -2,6 +2,7 @@ package buffermgr
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,17 +27,31 @@ type NewBufferMgrParams struct {
 	Time        dtime.Time
 }
 
-func NewBufferMgr(p *NewBufferMgrParams) *BufferMgrImpl {
-	maxWaitTime := p.MaxWaitTime
-	if p.MaxWaitTime == 0 {
-		maxWaitTime = defaultMaxWaitTime
+type Opt func(*BufferMgrImpl)
+
+func WithMaxWaitTime(t time.Duration) Opt {
+	return func(b *BufferMgrImpl) {
+		b.maxWaitTime = t
 	}
-	return &BufferMgrImpl{
-		pool:         p.Buffers,
-		availableNum: len(p.Buffers),
-		time:         p.Time,
-		maxWaitTime:  maxWaitTime,
+}
+
+func WithTime(t dtime.Time) Opt {
+	return func(b *BufferMgrImpl) {
+		b.time = t
 	}
+}
+
+func NewBufferMgr(buffs []buffer.Buffer, opts ...Opt) *BufferMgrImpl {
+	bm := &BufferMgrImpl{
+		pool:         buffs,
+		availableNum: len(buffs),
+		time:         dtime.NewTime(),
+		maxWaitTime:  defaultMaxWaitTime,
+	}
+	for _, opt := range opts {
+		opt(bm)
+	}
+	return bm
 }
 
 func (bm *BufferMgrImpl) Pin(block file.BlockId) (buffer.Buffer, error) {
@@ -102,10 +117,12 @@ func (bm *BufferMgrImpl) tryPin(block file.BlockId) buffer.Buffer {
 	if buff == nil {
 		buff = bm.findUnpinnedBuffer()
 		if buff == nil {
+			fmt.Println("buffer: no unpinned buffer")
 			return nil
 		}
 		err := buff.AssignToBlock(block)
 		if err != nil {
+			fmt.Println("buffer: failed to assign block to buff", err)
 			return nil
 		}
 	}

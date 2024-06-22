@@ -6,20 +6,20 @@ import (
 )
 
 type Transaction interface {
-	Commit()
-	Rollback()
-	Recover()
+	Commit() error
+	Rollback() error
+	Recover() error
 
-	Pin(block file.BlockId)
+	Pin(block file.BlockId) error
 	Unpin(block file.BlockId)
-	GetInt(block file.BlockId, offset int) int
-	GetString(block file.BlockId, offset int) string
-	SetInt(block file.BlockId, offset int, val int, okToLog bool)
-	SetString(block file.BlockId, offset int, val string, okToLog bool)
+	GetInt(block file.BlockId, offset int) (int, error)
+	GetString(block file.BlockId, offset int) (string, error)
+	SetInt(block file.BlockId, offset int, val int, okToLog bool) error
+	SetString(block file.BlockId, offset int, val string, okToLog bool) error
 	AvailableBuffs() int
 
-	Size(filename string) int
-	Append(filename string) file.BlockId
+	Size(filename string) (int, error)
+	Append(filename string) (file.BlockId, error)
 	BlockSize() int
 }
 
@@ -44,9 +44,22 @@ type Lock interface {
 	Unlock(block file.BlockId)
 }
 
+/*
+BufferList manages the list of currently pinned buffers for a transaction.
+A BufferList object needs to know two things:
+  - which buffer  is assigned to a specified block
+  - how many times each block is pinned
+
+The code uses a map to determine buffers and a list to determine pin counts.
+The list contains a  BlockId object as many times as it is pinned; each time the block is unpinned, one  instance is removed from the list.
+*/
 type BufferList interface {
 	GetBuffer(block file.BlockId) (buffer.Buffer, bool)
 	Pin(block file.BlockId) error
 	Unpin(block file.BlockId)
 	UnpinAll()
+}
+
+type TxNumberGenerator interface {
+	Next() int
 }

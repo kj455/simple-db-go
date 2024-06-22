@@ -1,7 +1,9 @@
 package file
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -43,6 +45,9 @@ func (m *FileMgrImpl) Read(id BlockId, p Page) error {
 	}
 
 	_, err = f.Read(p.Contents().Bytes())
+	if errors.Is(io.EOF, err) {
+		return nil
+	}
 	return err
 }
 
@@ -66,7 +71,7 @@ func (m *FileMgrImpl) Write(id BlockId, p Page) error {
 }
 
 // Append appends a new block to the file and returns the block ID.
-func (m *FileMgrImpl) Append(filename string) (*BlockIdImpl, error) {
+func (m *FileMgrImpl) Append(filename string) (BlockId, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

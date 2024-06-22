@@ -54,7 +54,7 @@ func (b *BufferImpl) AssignToBlock(block file.BlockId) error {
 	if err := b.Flush(); err != nil {
 		return fmt.Errorf("buffer: failed to flush: %w", err)
 	}
-	if err := b.fileMgr.Read(b.block, b.contents); err != nil {
+	if err := b.fileMgr.Read(block, b.contents); err != nil {
 		return fmt.Errorf("buffer: failed to read block: %w", err)
 	}
 	b.block = block

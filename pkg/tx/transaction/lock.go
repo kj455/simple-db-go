@@ -21,22 +21,30 @@ type LockImpl struct {
 	time        ttime.Time
 }
 
-type NewLockParams struct {
-	WaitTime time.Duration
-	Time     ttime.Time
+type LockOption func(*LockImpl)
+
+func WithTime(t ttime.Time) LockOption {
+	return func(o *LockImpl) {
+		o.time = t
+	}
 }
 
-func NewLock(p NewLockParams) *LockImpl {
-	waitTime := DEFAULT_MAX_WAIT_TIME
-	if p.WaitTime != 0 {
-		waitTime = p.WaitTime
+func WithWaitTime(d time.Duration) LockOption {
+	return func(o *LockImpl) {
+		o.maxWaitTime = d
 	}
+}
+
+func NewLock(options ...LockOption) *LockImpl {
 	l := &LockImpl{
 		locks:       make(map[file.BlockId]lockState),
-		maxWaitTime: waitTime,
-		time:        p.Time,
+		maxWaitTime: DEFAULT_MAX_WAIT_TIME,
+		time:        ttime.NewTime(),
 	}
 	l.cond = sync.NewCond(&l.mu)
+	for _, option := range options {
+		option(l)
+	}
 	return l
 }
 

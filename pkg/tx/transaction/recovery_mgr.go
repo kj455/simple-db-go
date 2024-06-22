@@ -104,7 +104,9 @@ func (rm *RecoveryMgrImpl) rollback() error {
 		if rec.Op() == START {
 			return nil
 		}
-		rec.Undo(rm.tx)
+		if err := rec.Undo(rm.tx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -128,8 +130,11 @@ func (rm *RecoveryMgrImpl) recover() error {
 			finishedTxs[rec.TxNum()] = true
 			continue
 		default:
-			if !finishedTxs[rec.TxNum()] {
-				rec.Undo(rm.tx)
+			if finishedTxs[rec.TxNum()] {
+				continue
+			}
+			if err := rec.Undo(rm.tx); err != nil {
+				return err
 			}
 		}
 	}

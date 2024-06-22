@@ -22,8 +22,8 @@ func (r *CheckpointRecord) TxNum() int {
 	return dummyTxNum
 }
 
-func (r *CheckpointRecord) Undo(tx tx.Transaction) {
-	// no-op
+func (r *CheckpointRecord) Undo(tx tx.Transaction) error {
+	return nil
 }
 
 func (r *CheckpointRecord) String() string {

@@ -36,8 +36,7 @@ func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 		return lm, nil
 	}
 	lm.currentBlock = file.NewBlockId(filename, blockLength-1)
-	err = fm.Read(lm.currentBlock, lm.page)
-	if err != nil {
+	if err = fm.Read(lm.currentBlock, lm.page); err != nil {
 		return nil, fmt.Errorf("log: cannot read block %s: %w", lm.currentBlock, err)
 	}
 	return lm, nil
@@ -47,18 +46,18 @@ func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 func (lm *LogMgrImpl) Append(record []byte) (int, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	if !lm.hasWritableSpace(len(record)) {
-		err := lm.flush()
-		if err != nil {
+	bytesNeeded := len(record) + 4
+	if !lm.hasWritableSpace(bytesNeeded) {
+		if err := lm.flush(); err != nil {
 			return -1, fmt.Errorf("log: cannot flush log: %w", err)
 		}
-		block, err := lm.appendNewBlock()
+		var err error
+		lm.currentBlock, err = lm.appendNewBlock()
 		if err != nil {
 			return -1, fmt.Errorf("log: cannot append new block: %w", err)
 		}
-		lm.currentBlock = block
 	}
-	offset := lm.getLastOffset() - len(record)
+	offset := lm.getLastOffset() - bytesNeeded
 	lm.setBytes(offset, record)
 	lm.latestLSN++
 	return lm.latestLSN, nil
@@ -77,20 +76,18 @@ func (lm *LogMgrImpl) Flush(lsn int) error {
 func (lm *LogMgrImpl) Iterator() (LogIterator, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	err := lm.flush()
-	if err != nil {
+	if err := lm.flush(); err != nil {
 		return nil, fmt.Errorf("log: cannot flush log: %w", err)
 	}
 	return NewLogIterator(lm.fileMgr, lm.currentBlock)
 }
 
-func (lm *LogMgrImpl) appendNewBlock() (*file.BlockIdImpl, error) {
+func (lm *LogMgrImpl) appendNewBlock() (file.BlockId, error) {
 	block, err := lm.fileMgr.Append(lm.filename)
 	if err != nil {
 		return nil, err
 	}
-	err = lm.fileMgr.Write(block, lm.page)
-	if err != nil {
+	if err = lm.fileMgr.Write(block, lm.page); err != nil {
 		return nil, err
 	}
 	lm.setLastOffset(lm.fileMgr.BlockSize())
@@ -115,8 +112,8 @@ func (lm *LogMgrImpl) getLastOffset() int {
 	return int(lm.page.GetInt(0))
 }
 
-func (lm *LogMgrImpl) setLastOffset(pos int) {
-	lm.page.SetInt(0, uint32(pos))
+func (lm *LogMgrImpl) setLastOffset(val int) {
+	lm.page.SetInt(0, uint32(val))
 }
 
 func (lm *LogMgrImpl) setBytes(offset int, value []byte) {

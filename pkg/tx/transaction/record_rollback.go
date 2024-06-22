@@ -28,8 +28,8 @@ func (r *RollbackRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *RollbackRecord) Undo(tx tx.Transaction) {
-	// no-op
+func (r *RollbackRecord) Undo(tx tx.Transaction) error {
+	return nil
 }
 
 func (r *RollbackRecord) String() string {

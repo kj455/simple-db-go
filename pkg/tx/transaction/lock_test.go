@@ -13,14 +13,12 @@ import (
 func TestNewLock(t *testing.T) {
 	t.Parallel()
 	t.Run("default", func(t *testing.T) {
-		l := NewLock(NewLockParams{})
+		l := NewLock()
 		assert.NotNil(t, l)
 		assert.Equal(t, DEFAULT_MAX_WAIT_TIME, l.maxWaitTime)
 	})
 	t.Run("custom", func(t *testing.T) {
-		l := NewLock(NewLockParams{
-			WaitTime: time.Duration(5),
-		})
+		l := NewLock(WithWaitTime(time.Duration(5)))
 		assert.NotNil(t, l)
 		assert.Equal(t, time.Duration(5), l.maxWaitTime)
 	})
@@ -82,9 +80,7 @@ func TestSLock_Wait(t *testing.T) {
 	now := time.Date(2024, 5, 27, 0, 0, 0, 0, time.UTC)
 	m.time.EXPECT().Now().Return(now).AnyTimes()
 	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
-	l := NewLock(NewLockParams{
-		Time: m.time,
-	})
+	l := NewLock(WithTime(m.time))
 
 	// XLock を取得しておく
 	err := l.XLock(m.block)
@@ -164,9 +160,7 @@ func TestXLock_Wait(t *testing.T) {
 	now := time.Date(2024, 5, 27, 0, 0, 0, 0, time.UTC)
 	m.time.EXPECT().Now().Return(now).AnyTimes()
 	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
-	l := NewLock(NewLockParams{
-		Time: m.time,
-	})
+	l := NewLock(WithTime(m.time))
 
 	// SLock を2つ取得しておく
 	for i := 0; i < lockNum; i++ {

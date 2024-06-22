@@ -93,7 +93,7 @@ func TestBuffer_AssignToBlock(t *testing.T) {
 		{
 			name: "assign",
 			setup: func(m *mocks, b *BufferImpl) {
-				m.fileMgr.EXPECT().Read(nil, gomock.Any()).Return(nil)
+				m.fileMgr.EXPECT().Read(m.block, gomock.Any()).Return(nil)
 			},
 			expect: func(res error, b *BufferImpl) {
 				assert.Nil(t, res)
@@ -108,7 +108,7 @@ func TestBuffer_AssignToBlock(t *testing.T) {
 				b.lsn = lsn
 				m.logMgr.EXPECT().Flush(lsn).Return(nil)
 				m.fileMgr.EXPECT().Write(nil, gomock.Any()).Return(nil)
-				m.fileMgr.EXPECT().Read(nil, gomock.Any()).Return(nil)
+				m.fileMgr.EXPECT().Read(m.block, gomock.Any()).Return(nil)
 			},
 			expect: func(res error, b *BufferImpl) {
 				assert.Nil(t, res)

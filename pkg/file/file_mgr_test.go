@@ -66,21 +66,12 @@ func TestFileMgr(t *testing.T) {
 			},
 		},
 		{
-			name: "Read non-existent file",
-			fn: func(t *testing.T, mgr *FileMgrImpl) {
-				id := NewBlockId("non-existent-file", 0)
-				page := NewPage(blockSize)
-				err := mgr.Read(id, page)
-				assert.Error(t, err)
-			},
-		},
-		{
 			name: "Append",
 			fn: func(t *testing.T, mgr *FileMgrImpl) {
 				id, err := mgr.Append(testFilename)
 				assert.NoError(t, err)
-				assert.Equal(t, testFilename, id.filename)
-				assert.Equal(t, 0, id.blockNum)
+				assert.Equal(t, testFilename, id.Filename())
+				assert.Equal(t, 0, id.Number())
 			},
 		},
 	}

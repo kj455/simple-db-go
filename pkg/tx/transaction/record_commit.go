@@ -28,8 +28,8 @@ func (r *CommitRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *CommitRecord) Undo(tx tx.Transaction) {
-	// no-op
+func (r *CommitRecord) Undo(tx tx.Transaction) error {
+	return nil
 }
 
 func (r *CommitRecord) String() string {

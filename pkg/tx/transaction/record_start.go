@@ -28,8 +28,8 @@ func (r *StartRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *StartRecord) Undo(tx tx.Transaction) {
-	// no-op
+func (r *StartRecord) Undo(tx tx.Transaction) error {
+	return nil
 }
 
 func (r *StartRecord) String() string {

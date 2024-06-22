@@ -20,9 +20,8 @@ type ConcurrencyMgrImpl struct {
 }
 
 func NewConcurrencyMgr() *ConcurrencyMgrImpl {
-	l := NewLock(NewLockParams{})
 	return &ConcurrencyMgrImpl{
-		l:     l,
+		l:     NewLock(),
 		Locks: make(map[file.BlockId]LockType),
 	}
 }

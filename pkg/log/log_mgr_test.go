@@ -91,8 +91,8 @@ func TestLogMgr_Append(t *testing.T) {
 			record: []byte("test"),
 			setup: func(m *mocks, lm *LogMgrImpl) {
 				m.page.EXPECT().GetInt(0).Return(uint32(blockSize)).AnyTimes()
-				m.page.EXPECT().SetBytes(blockSize-4, []byte("test"))
-				m.page.EXPECT().SetInt(0, uint32(blockSize)-4)
+				m.page.EXPECT().SetBytes(blockSize-4-4, []byte("test"))
+				m.page.EXPECT().SetInt(0, uint32(blockSize)-4-4)
 				lm.latestLSN = 99
 			},
 			expect: func(lm *LogMgrImpl) {
@@ -113,8 +113,8 @@ func TestLogMgr_Append(t *testing.T) {
 				m.fileMgr.EXPECT().BlockSize().Return(blockSize).AnyTimes()
 				m.page.EXPECT().SetInt(0, uint32(blockSize))
 				m.page.EXPECT().GetInt(0).Return(uint32(blockSize))
-				m.page.EXPECT().SetBytes(blockSize-4, []byte("test"))
-				m.page.EXPECT().SetInt(0, uint32(blockSize)-4)
+				m.page.EXPECT().SetBytes(blockSize-4-4, []byte("test"))
+				m.page.EXPECT().SetInt(0, uint32(blockSize)-4-4)
 				lm.latestLSN = 99
 			},
 			expect: func(lm *LogMgrImpl) {

@@ -43,10 +43,16 @@ func (r *SetStringRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *SetStringRecord) Undo(tx tx.Transaction) {
-	tx.Pin(r.block)
-	tx.SetString(r.block, r.offset, r.val, false) // false: don't log the undo
+func (r *SetStringRecord) Undo(tx tx.Transaction) error {
+	if err := tx.Pin(r.block); err != nil {
+		return err
+	}
+	// false: don't log the undo
+	if err := tx.SetString(r.block, r.offset, r.val, false); err != nil {
+		return err
+	}
 	tx.Unpin(r.block)
+	return nil
 }
 
 func (r *SetStringRecord) String() string {
