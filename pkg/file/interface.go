@@ -2,6 +2,7 @@ package file
 
 import "bytes"
 
+// BlockId identifies a specific block by its filename and logical block number.
 type BlockId interface {
 	Filename() string
 	Number() int
@@ -9,6 +10,7 @@ type BlockId interface {
 	String() string
 }
 
+// Page holds the contents of a disk block.
 type Page interface {
 	ReadWritePage
 	Contents() *bytes.Buffer
@@ -31,6 +33,7 @@ type WritePage interface {
 	SetString(offset int, value string)
 }
 
+// FileMgr handles the actual interaction with the OS file system.
 type FileMgr interface {
 	Read(id BlockId, p Page) error
 	Write(id BlockId, p Page) error
