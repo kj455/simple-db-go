@@ -1,8 +1,6 @@
 package record
 
 import (
-	"fmt"
-
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/tx"
 )
@@ -111,7 +109,6 @@ func (rp *RecordPageImpl) setFlag(slot int, flag SlotFlag) error {
 func (rp *RecordPageImpl) searchAfter(slot int, flag SlotFlag) int {
 	slot++
 	for rp.isValidSlot(slot) {
-		fmt.Println("blk", rp.Block(), "offset", rp.offset(slot))
 		val, _ := rp.tx.GetInt(rp.blk, rp.offset(slot))
 		if val == int(flag) {
 			return slot
