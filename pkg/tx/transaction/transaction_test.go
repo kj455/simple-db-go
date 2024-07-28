@@ -208,7 +208,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 	go A(t, fm, lm, bm, txNumGen)
 	go B(t, fm, lm, bm, txNumGen)
 	go C(t, fm, lm, bm, txNumGen)
-	
+
 	wg.Wait()
 }
 
