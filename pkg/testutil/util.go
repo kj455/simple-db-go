@@ -26,3 +26,8 @@ func ProjectRootDir() string {
 	}
 	return currentDir
 }
+
+func CleanupDir(dir string) {
+	_ = os.RemoveAll(dir)
+	_ = os.MkdirAll(dir, os.ModePerm)
+}
