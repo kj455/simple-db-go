@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 
+	"github.com/kj455/db/pkg/constant"
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/tx"
 )
@@ -17,7 +18,7 @@ type TableScanImpl struct {
 
 const TABLE_SUFFIX = ".tbl"
 
-func NewTableScan(tx tx.Transaction, table string, layout Layout) (TableScan, error) {
+func NewTableScan(tx tx.Transaction, table string, layout Layout) (*TableScanImpl, error) {
 	ts := &TableScanImpl{
 		tx:       tx,
 		layout:   layout,
@@ -64,16 +65,24 @@ func (ts *TableScanImpl) GetString(field string) (string, error) {
 	return ts.rp.GetString(ts.curSlot, field)
 }
 
-func (ts *TableScanImpl) GetVal(field string) (any, error) {
+func (ts *TableScanImpl) GetVal(field string) (*constant.Const, error) {
 	schemaType, err := ts.layout.Schema().Type(field)
 	if err != nil {
 		return nil, err
 	}
 	switch schemaType {
 	case SCHEMA_TYPE_INTEGER:
-		return ts.GetInt(field)
+		v, err := ts.GetInt(field)
+		if err != nil {
+			return nil, err
+		}
+		return constant.NewConstant(constant.KIND_INT, v)
 	case SCHEMA_TYPE_VARCHAR:
-		return ts.GetString(field)
+		v, err := ts.GetString(field)
+		if err != nil {
+			return nil, err
+		}
+		return constant.NewConstant(constant.KIND_STR, v)
 	default:
 		return nil, fmt.Errorf("record: table scan: get val: unknown type %v", schemaType)
 	}
@@ -97,24 +106,22 @@ func (ts *TableScanImpl) SetString(field string, val string) error {
 	return ts.rp.SetString(ts.curSlot, field, val)
 }
 
-func (ts *TableScanImpl) SetVal(field string, val any) error {
+func (ts *TableScanImpl) SetVal(field string, val *constant.Const) error {
 	schemaType, err := ts.layout.Schema().Type(field)
 	if err != nil {
 		return err
 	}
 	switch schemaType {
 	case SCHEMA_TYPE_INTEGER:
-		v, ok := val.(int)
-		if !ok {
+		if val.Kind() != constant.KIND_INT {
 			return fmt.Errorf("record: table scan: set val: expected int, got %v", val)
 		}
-		return ts.SetInt(field, v)
+		return ts.SetInt(field, val.AsInt())
 	case SCHEMA_TYPE_VARCHAR:
-		v, ok := val.(string)
-		if !ok {
+		if val.Kind() != constant.KIND_STR {
 			return fmt.Errorf("record: table scan: set val: expected string, got %v", val)
 		}
-		return ts.SetString(field, v)
+		return ts.SetString(field, val.AsString())
 	}
 	return nil
 }

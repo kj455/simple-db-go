@@ -3,9 +3,9 @@ PKG := $(shell go list ./... | grep -v '/mock$$')
 print-pkg:
 	@echo $(PKG)
 test:
-	go test -v $(PKG)
+	gotestsum --format testname $(PKG)
 testw:
-	gow test -timeout 5s $(PKG)
+	gotestsum --watch --format testname $(PKG)
 lint:
 	golangci-lint run
 clean:
