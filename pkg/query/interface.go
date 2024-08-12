@@ -46,6 +46,7 @@ type UpdateScan interface {
 
 type Predicate interface {
 	IsSatisfied(s Scan) (bool, error)
+	String() string
 }
 
 type Expression interface {
