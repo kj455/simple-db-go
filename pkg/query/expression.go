@@ -12,12 +12,12 @@ type ExpressionImpl struct {
 }
 
 // NewConstantExpression creates a new expression with a constant value.
-func NewConstantExpression(val *constant.Const) Expression {
+func NewConstantExpression(val *constant.Const) *ExpressionImpl {
 	return &ExpressionImpl{val: val}
 }
 
 // NewFieldExpression creates a new expression with a field name.
-func NewFieldExpression(field string) Expression {
+func NewFieldExpression(field string) *ExpressionImpl {
 	return &ExpressionImpl{field: field}
 }
 
