@@ -16,7 +16,7 @@ import (
 var randInts = []int{38, 1, 31, 13, 30, 4, 16, 47, 29, 33}
 
 func TestRecord(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, 400)
 	lm, _ := log.NewLogMgr(fm, "testlogfile")

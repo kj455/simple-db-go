@@ -44,7 +44,8 @@ func (li *LogIteratorImpl) Next() ([]byte, error) {
 		}
 	}
 	record := li.page.GetBytes(li.curOffset)
-	li.curOffset += len(record) + 4 // bytesLen(4 bytes) + record
+	const bytesLen = 4
+	li.curOffset += bytesLen + len(record)
 	return record, nil
 }
 

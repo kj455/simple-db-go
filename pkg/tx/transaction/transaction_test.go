@@ -82,7 +82,7 @@ func TestTransaction_Integration(t *testing.T) {
 		logFilename = "test_tx_integration_log"
 		blockSize   = 400
 	)
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, err := log.NewLogMgr(fm, logFilename)
@@ -136,7 +136,7 @@ func TestTransaction_Integration(t *testing.T) {
 }
 
 func TestTransaction_Concurrency(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, 400)
 	lm, _ := log.NewLogMgr(fm, "testlogfile")
@@ -436,7 +436,7 @@ func TestTransaction_Size(t *testing.T) {
 	defer ctrl.Finish()
 	m := newMocks(ctrl)
 	m.concurMgr.EXPECT().SLock(gomock.Any()).Return(nil)
-	m.fileMgr.EXPECT().Length(filename).Return(1, nil)
+	m.fileMgr.EXPECT().BlockNum(filename).Return(1, nil)
 	tx := newMockTransaction(m)
 
 	got, err := tx.Size(filename)

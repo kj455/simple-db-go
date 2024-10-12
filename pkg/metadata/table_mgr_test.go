@@ -15,7 +15,7 @@ import (
 )
 
 func TestTableMgr(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, 400)
 	lm, err := log.NewLogMgr(fm, "testlogfile")

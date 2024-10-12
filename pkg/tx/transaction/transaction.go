@@ -149,7 +149,7 @@ func (t *TransactionImpl) Size(filename string) (int, error) {
 	if err := t.concurMgr.SLock(dummy); err != nil {
 		return 0, fmt.Errorf("tx: failed to SLock dummy block: %w", err)
 	}
-	len, err := t.fm.Length(filename)
+	len, err := t.fm.BlockNum(filename)
 	if err != nil {
 		return 0, fmt.Errorf("tx: failed to get size: %w", err)
 	}

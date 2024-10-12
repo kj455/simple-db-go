@@ -66,7 +66,6 @@ func createRecords(t *testing.T, lm LogMgr, start int, end int) {
 		require.NoError(t, err)
 		t.Logf("%d ", lsn)
 	}
-	fmt.Println()
 }
 
 func createLogRecord(lm LogMgr, s string, n int) []byte {

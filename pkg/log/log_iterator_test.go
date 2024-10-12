@@ -3,129 +3,125 @@ package log
 import (
 	"testing"
 
+	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewLogIterator(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Parallel()
+	const (
+		fileName  = "test_log_iterator"
+		blockSize = 8
+	)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	writePage := file.NewPage(blockSize)
+	writePage.SetInt(0, blockSize)
+	fileMgr.Write(file.NewBlockId(fileName, 0), writePage)
 
-	m := newMocks(ctrl)
-	m.fileMgr.EXPECT().BlockSize().Return(4096)
-	m.fileMgr.EXPECT().Read(m.block, gomock.Any()).Return(nil)
-
-	li, err := NewLogIterator(m.fileMgr, m.block)
+	block := file.NewBlockId(fileName, 0)
+	li, err := NewLogIterator(fileMgr, block)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, li)
-	assert.Equal(t, m.fileMgr, li.fm)
-	assert.Equal(t, m.block, li.block)
-}
-
-func newMockLogIterator(m *mocks) *LogIteratorImpl {
-	return &LogIteratorImpl{
-		fm:    m.fileMgr,
-		block: m.block,
-		page:  m.page,
-	}
+	assert.Equal(t, blockSize, li.curOffset)
 }
 
 func TestLogIterator_HasNext(t *testing.T) {
-	const blockSize = 4096
-	tests := []struct {
-		name   string
-		setup  func(m *mocks, li *LogIteratorImpl)
-		expect bool
-	}{
-		{
-			name: "has next - offset is less than block size",
-			setup: func(m *mocks, li *LogIteratorImpl) {
-				li.curOffset = 0
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-			},
-			expect: true,
-		},
-		{
-			name: "has next - has next block",
-			setup: func(m *mocks, li *LogIteratorImpl) {
-				li.curOffset = blockSize
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-				m.block.EXPECT().Number().Return(1)
-			},
-			expect: true,
-		},
-		{
-			name: "no next",
-			setup: func(m *mocks, li *LogIteratorImpl) {
-				li.curOffset = blockSize
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-				m.block.EXPECT().Number().Return(0)
-			},
-			expect: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			li := newMockLogIterator(m)
-			tt.setup(m, li)
-			assert.Equal(t, tt.expect, li.HasNext())
-		})
-	}
+
+	t.Run("offset is less than block size", func(t *testing.T) {
+		const (
+			blockSize = 4096
+			filename  = "test_log_iterator_has_next"
+		)
+		dir, _, cleanup := testutil.SetupFile(filename)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block := file.NewBlockId(filename, 0)
+
+		li, err := NewLogIterator(fileMgr, block)
+		li.curOffset = blockSize - 1
+
+		assert.NoError(t, err)
+		assert.True(t, li.HasNext())
+
+		li.curOffset = blockSize
+		assert.False(t, li.HasNext())
+	})
+	t.Run("block number is greater than 0", func(t *testing.T) {
+		const (
+			blockSize = 4096
+			filename  = "test_log_iterator_has_next"
+		)
+		dir, _, cleanup := testutil.SetupFile(filename)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block := file.NewBlockId(filename, 1)
+
+		li, err := NewLogIterator(fileMgr, block)
+
+		assert.NoError(t, err)
+		assert.True(t, li.HasNext())
+	})
 }
 
 func TestLogIterator_Next(t *testing.T) {
-	const (
-		blockSize = 4096
-		record    = "record"
-	)
-	tests := []struct {
-		name   string
-		setup  func(m *mocks, li *LogIteratorImpl)
-		expect func(t *testing.T, li *LogIteratorImpl, got []byte)
-	}{
-		{
-			name: "offset is less than block size",
-			setup: func(m *mocks, li *LogIteratorImpl) {
-				li.curOffset = 10
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-				m.page.EXPECT().GetBytes(10).Return([]byte(record))
-			},
-			expect: func(t *testing.T, li *LogIteratorImpl, got []byte) {
-				assert.Equal(t, []byte(record), got)
-				assert.Equal(t, 10+len(record)+4, li.curOffset)
-			},
-		},
-		{
-			name: "block finished",
-			setup: func(m *mocks, li *LogIteratorImpl) {
-				li.curOffset = blockSize
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize).AnyTimes()
-				m.block.EXPECT().Filename().Return("test.log")
-				m.block.EXPECT().Number().Return(1)
-				m.fileMgr.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil)
-				m.page.EXPECT().GetInt(0).Return(uint32(99))
-				m.page.EXPECT().GetBytes(99).Return([]byte(record))
-			},
-			expect: func(t *testing.T, li *LogIteratorImpl, got []byte) {
-				assert.Equal(t, []byte(record), got)
-				assert.Equal(t, 99+len(record)+4, li.curOffset)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			li := newMockLogIterator(m)
-			tt.setup(m, li)
-			got, err := li.Next()
-			tt.expect(t, li, got)
-			assert.NoError(t, err)
-		})
-	}
+	t.Parallel()
+	t.Run("not finished", func(t *testing.T) {
+		t.Parallel()
+		const (
+			blockSize = 14
+			record    = "record"
+			filename  = "test_log_iterator_next_not_finished"
+		)
+		dir, _, cleanup := testutil.SetupFile(filename)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block := file.NewBlockId(filename, 0)
+		page := file.NewPage(blockSize)
+		// setup record in the page
+		page.SetInt(0, 4)
+		page.SetBytes(4, []byte(record))
+		fileMgr.Write(block, page)
+
+		li, err := NewLogIterator(fileMgr, block)
+		assert.NoError(t, err)
+
+		got, err := li.Next()
+
+		assert.NoError(t, err)
+		assert.Equal(t, []byte(record), got)
+		assert.Equal(t, blockSize, li.curOffset)
+	})
+	t.Run("block finished", func(t *testing.T) {
+		t.Parallel()
+		const (
+			blockSize = 12
+			record    = "record"
+			filename  = "test_log_iterator_next_block_finished"
+		)
+		dir, _, cleanup := testutil.SetupFile(filename)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block0 := file.NewBlockId(filename, 0)
+		page0 := file.NewPage(blockSize)
+		page0.SetInt(0, 4) // second record
+		fileMgr.Write(block0, page0)
+
+		block1 := file.NewBlockId(filename, 1)
+		page1 := file.NewPage(blockSize)
+		page1.SetInt(0, blockSize) // finished
+		fileMgr.Write(block1, page1)
+
+		li, err := NewLogIterator(fileMgr, block1)
+		assert.NoError(t, err)
+		li.curOffset = blockSize
+
+		_, err = li.Next()
+
+		assert.NoError(t, err)
+		assert.Equal(t, block0, li.block)
+		assert.Equal(t, 4+4, li.curOffset) // first record
+	})
 }

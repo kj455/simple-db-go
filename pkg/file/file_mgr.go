@@ -96,8 +96,8 @@ func (m *FileMgrImpl) Append(filename string) (BlockId, error) {
 	return block, nil
 }
 
-// Length returns the number of blocks in the file.
-func (m *FileMgrImpl) Length(filename string) (int, error) {
+// BlockNum returns the number of blocks in the file.
+func (m *FileMgrImpl) BlockNum(filename string) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -106,8 +106,8 @@ func (m *FileMgrImpl) Length(filename string) (int, error) {
 		return -1, err
 	}
 
-	length, err := f.Seek(0, 2) // Seek to end of file
-	return int(length) / m.blockSize, err
+	length, err := f.Seek(0, 2) // Seek to the end of the file
+	return int((length + int64(m.blockSize) - 1) / int64(m.blockSize)), err
 }
 
 func (m *FileMgrImpl) BlockSize() int {

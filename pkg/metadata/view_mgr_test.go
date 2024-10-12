@@ -14,7 +14,7 @@ import (
 )
 
 func TestViewMgr(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, 400)
 	lm, _ := log.NewLogMgr(fm, "testlogfile")

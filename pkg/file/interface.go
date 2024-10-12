@@ -38,6 +38,6 @@ type FileMgr interface {
 	Read(id BlockId, p Page) error
 	Write(id BlockId, p Page) error
 	Append(filename string) (BlockId, error)
-	Length(filename string) (int, error)
+	BlockNum(filename string) (int, error)
 	BlockSize() int
 }

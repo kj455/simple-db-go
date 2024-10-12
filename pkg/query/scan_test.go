@@ -19,7 +19,7 @@ import (
 
 func TestScan1(t *testing.T) {
 	const blockSize = 400
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp/scan1"
 	defer testutil.CleanupDir(dir)
 	fm := file.NewFileMgr(dir, blockSize)
@@ -74,7 +74,7 @@ func TestScan1(t *testing.T) {
 
 func TestScan2(t *testing.T) {
 	const blockSize = 400
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp/scan2"
 	defer testutil.CleanupDir(dir)
 	fm := file.NewFileMgr(dir, blockSize)

@@ -13,7 +13,7 @@ import (
 
 func TestTableScan(t *testing.T) {
 	const blockSize = 400
-	rootDir := testutil.ProjectRootDir()
+	rootDir := testutil.RootDir()
 	dir := rootDir + "/.tmp"
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, "testlogfile")

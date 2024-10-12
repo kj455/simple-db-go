@@ -4,180 +4,143 @@ import (
 	"testing"
 
 	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
-const testFilename = "test.log"
-
-func newMockLogMgr(m *mocks) *LogMgrImpl {
-	return &LogMgrImpl{
-		filename:     testFilename,
-		fileMgr:      m.fileMgr,
-		page:         m.page,
-		currentBlock: m.block,
-	}
-}
-
 func TestNewLogMgr(t *testing.T) {
-	const (
-		filename  = "test.log"
-		blockSize = 4096
-		blockNum  = 0
-	)
-	blockId := file.NewBlockId(filename, blockNum)
-	tests := []struct {
-		name   string
-		setup  func(m *mocks)
-		expect func(lm *LogMgrImpl)
-	}{
-		{
-			name: "block length is 0",
-			setup: func(m *mocks) {
-				const length = 0
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-				m.fileMgr.EXPECT().Length(filename).Return(length, nil)
-				m.fileMgr.EXPECT().Append(filename).Return(blockId, nil)
-				m.fileMgr.EXPECT().Write(gomock.Any(), gomock.Any()).Return(nil)
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.NotNil(t, lm)
-				assert.Equal(t, filename, lm.filename)
-				assert.Equal(t, blockSize, lm.getLastOffset())
-			},
-		},
-		{
-			name: "block length is not 0",
-			setup: func(m *mocks) {
-				const length = 1
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize)
-				m.fileMgr.EXPECT().Length(filename).Return(length, nil)
-				m.fileMgr.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil)
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.NotNil(t, lm)
-				assert.Equal(t, filename, lm.filename)
-				assert.Equal(t, 0, lm.getLastOffset())
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			tt.setup(m)
-			lm, _ := NewLogMgr(m.fileMgr, filename)
-			tt.expect(lm)
-		})
-	}
+	t.Parallel()
+	t.Run("no block", func(t *testing.T) {
+		const (
+			testFileName = "test_new_log_mgr_first_block"
+			blockSize    = 4096
+		)
+		dir, _, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+
+		lm, err := NewLogMgr(fileMgr, testFileName)
+
+		assert.NoError(t, err)
+		firstBlock := file.NewBlockId(testFileName, 0)
+		assert.True(t, lm.currentBlock.Equals(firstBlock))
+		assert.Equal(t, blockSize, lm.getLastOffset())
+	})
+
+	t.Run("block exists", func(t *testing.T) {
+		const (
+			testFileName = "test_new_log_mgr_block_exists"
+			blockSize    = 5
+		)
+		dir, f, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		record := []byte("hello world!!")
+		_, err := f.Write(record)
+		f.Close()
+		assert.NoError(t, err)
+		fileMgr := file.NewFileMgr(dir, blockSize)
+
+		lm, err := NewLogMgr(fileMgr, testFileName)
+
+		assert.NoError(t, err)
+		assert.True(t, lm.currentBlock.Equals(file.NewBlockId(testFileName, len("hello world!!")/blockSize)))
+		assert.Equal(t, "d!!\x00\x00", string(lm.page.Contents().String()))
+	})
 }
 
 func TestLogMgr_Append(t *testing.T) {
-	const (
-		filename  = "test.log"
-		blockSize = 4096
-		blockNum  = 0
-	)
-	tests := []struct {
-		name   string
-		record []byte
-		setup  func(m *mocks, lm *LogMgrImpl)
-		expect func(lm *LogMgrImpl)
-	}{
-		{
-			name:   "has enough space",
-			record: []byte("test"),
-			setup: func(m *mocks, lm *LogMgrImpl) {
-				m.page.EXPECT().GetInt(0).Return(uint32(blockSize)).AnyTimes()
-				m.page.EXPECT().SetBytes(blockSize-4-4, []byte("test"))
-				m.page.EXPECT().SetInt(0, uint32(blockSize)-4-4)
-				lm.latestLSN = 99
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.NotNil(t, lm)
-				assert.Equal(t, filename, lm.filename)
-				assert.Equal(t, 99+1, lm.latestLSN)
-			},
-		},
-		{
-			name:   "has not enough space",
-			record: []byte("test"),
-			setup: func(m *mocks, lm *LogMgrImpl) {
-				m.page.EXPECT().GetInt(0).Return(uint32(6))
-				m.fileMgr.EXPECT().Write(m.block, m.page).Return(nil)
-				newBlock := file.NewBlockId(filename, blockNum+1)
-				m.fileMgr.EXPECT().Append(filename).Return(newBlock, nil)
-				m.fileMgr.EXPECT().Write(newBlock, m.page).Return(nil)
-				m.fileMgr.EXPECT().BlockSize().Return(blockSize).AnyTimes()
-				m.page.EXPECT().SetInt(0, uint32(blockSize))
-				m.page.EXPECT().GetInt(0).Return(uint32(blockSize))
-				m.page.EXPECT().SetBytes(blockSize-4-4, []byte("test"))
-				m.page.EXPECT().SetInt(0, uint32(blockSize)-4-4)
-				lm.latestLSN = 99
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.NotNil(t, lm)
-				assert.Equal(t, filename, lm.filename)
-				assert.Equal(t, 99+1, lm.latestLSN)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			lm := newMockLogMgr(m)
-			tt.setup(m, lm)
-			lm.Append(tt.record)
-			tt.expect(lm)
-		})
-	}
+	t.Parallel()
+	t.Run("has space", func(t *testing.T) {
+		t.Parallel()
+		const (
+			testFileName = "test_log_mgr_append_has_space"
+			blockSize    = 10
+			blockIdx     = 0
+		)
+		dir, _, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		page := file.NewPage(blockSize)
+		page.SetInt(0, blockSize)
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block := file.NewBlockId(testFileName, blockIdx)
+		fileMgr.Write(block, page)
+		lm, err := NewLogMgr(fileMgr, testFileName)
+		assert.NoError(t, err)
+		record := []byte("test")
+
+		lm.Append(record)
+
+		assert.Equal(t, 0, lm.lastSavedLSN)
+		assert.Equal(t, 1, lm.latestLSN)
+		assert.Equal(t, blockSize-OFFSET_SIZE-len("test"), lm.getLastOffset())
+	})
+	t.Run("no space", func(t *testing.T) {
+		t.Parallel()
+		const (
+			testFileName = "test_log_mgr_append_no_space"
+			blockSize    = 8
+			blockIdx     = 0
+		)
+		dir, _, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		page := file.NewPage(blockSize)
+		page.SetInt(0, blockSize)
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		block := file.NewBlockId(testFileName, blockIdx)
+		fileMgr.Write(block, page)
+		lm, err := NewLogMgr(fileMgr, testFileName)
+		assert.NoError(t, err)
+		record := []byte("test")
+
+		lm.Append(record)
+
+		assert.Equal(t, 0, lm.lastSavedLSN)
+		assert.Equal(t, 1, lm.latestLSN)
+		nextBlock := file.NewBlockId(testFileName, blockIdx+1)
+		assert.True(t, lm.currentBlock.Equals(nextBlock))
+	})
 }
 
-func TestLogMgr_Flush(t *testing.T) {
-	tests := []struct {
-		name   string
-		lsn    int
-		setup  func(m *mocks, lm *LogMgrImpl)
-		expect func(lm *LogMgrImpl)
-	}{
-		{
-			name: "flush past lsn",
-			lsn:  100,
-			setup: func(m *mocks, lm *LogMgrImpl) {
-				lm.latestLSN = 100
-				lm.lastSavedLSN = 99
-				m.fileMgr.EXPECT().Write(m.block, m.page).Return(nil)
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.Equal(t, 100, lm.lastSavedLSN)
-			},
-		},
-		{
-			name: "not flush past lsn",
-			lsn:  100,
-			setup: func(m *mocks, lm *LogMgrImpl) {
-				m.fileMgr.EXPECT().Write(m.block, m.page).Return(nil)
-				lm.latestLSN = 99
-				lm.lastSavedLSN = 99
-			},
-			expect: func(lm *LogMgrImpl) {
-				assert.Equal(t, 99, lm.lastSavedLSN)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			lm := newMockLogMgr(m)
-			tt.setup(m, lm)
-			lm.Flush(tt.lsn)
-			tt.expect(lm)
-		})
-	}
+func TestLogMgr_Flush__(t *testing.T) {
+	t.Parallel()
+	t.Run("flush past lsn", func(t *testing.T) {
+		t.Parallel()
+		const (
+			testFileName = "test_log_mgr_flush_past_lsn"
+			blockSize    = 10
+		)
+		dir, _, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		lm, err := NewLogMgr(fileMgr, testFileName)
+		assert.NoError(t, err)
+		lm.latestLSN = 100
+		lm.lastSavedLSN = 99
+
+		lm.Flush(100)
+
+		assert.Equal(t, 100, lm.lastSavedLSN)
+		readPage := file.NewPage(blockSize)
+		fileMgr.Read(file.NewBlockId(testFileName, 0), readPage)
+		assert.Equal(t, int(readPage.GetInt(0)), blockSize)
+	})
+	t.Run("not flush past lsn", func(t *testing.T) {
+		t.Parallel()
+		const (
+			testFileName = "test_log_mgr_flush_not_past_lsn"
+			blockSize    = 10
+		)
+		dir, _, cleanup := testutil.SetupFile(testFileName)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		lm, err := NewLogMgr(fileMgr, testFileName)
+		assert.NoError(t, err)
+		lm.latestLSN = 100
+		lm.lastSavedLSN = 99
+
+		lm.Flush(98)
+
+		assert.Equal(t, 100, lm.latestLSN)
+		assert.Equal(t, 99, lm.lastSavedLSN)
+	})
 }

@@ -7,15 +7,36 @@ import (
 	"github.com/kj455/db/pkg/file"
 )
 
+/*
+	LogMgrImpl is a log manager that manages the log records in a file.
+	Log records are stored in a file in a backward manner(right to left).
+
+```
+
+	-------------------
+	| 4 bytes: offset |
+	-------------------
+	|  empty space    |
+	-------------------
+	|  record 2       |
+	-------------------
+	|  record 1       |
+	-------------------
+
+````
+*/
 type LogMgrImpl struct {
 	filename     string
 	fileMgr      file.FileMgr
 	page         file.Page
 	currentBlock file.BlockId
-	latestLSN    int
+	latestLSN    int // LSN: log sequence number
 	lastSavedLSN int
 	mu           sync.Mutex
 }
+
+// First 4 bytes of a block is the offset where the last record starts.
+const OFFSET_SIZE = 4
 
 func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 	page := file.NewPage(fm.BlockSize())
@@ -24,18 +45,18 @@ func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 		filename: filename,
 		page:     page,
 	}
-	blockLength, err := fm.Length(filename)
+	blockNum, err := fm.BlockNum(filename)
 	if err != nil {
 		return nil, fmt.Errorf("log: cannot get length of file %s: %w", filename, err)
 	}
-	if blockLength == 0 {
+	if blockNum == 0 {
 		lm.currentBlock, err = lm.appendNewBlock()
 		if err != nil {
 			return nil, fmt.Errorf("log: cannot append new block: %w", err)
 		}
 		return lm, nil
 	}
-	lm.currentBlock = file.NewBlockId(filename, blockLength-1)
+	lm.currentBlock = file.NewBlockId(filename, blockNum-1)
 	if err = fm.Read(lm.currentBlock, lm.page); err != nil {
 		return nil, fmt.Errorf("log: cannot read block %s: %w", lm.currentBlock, err)
 	}
@@ -46,8 +67,8 @@ func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 func (lm *LogMgrImpl) Append(record []byte) (int, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	bytesNeeded := len(record) + 4
-	if !lm.hasWritableSpace(bytesNeeded) {
+	bytesNeeded := len(record) + OFFSET_SIZE
+	if lm.hasInsufficientSpace(bytesNeeded) {
 		if err := lm.flush(); err != nil {
 			return -1, fmt.Errorf("log: cannot flush log: %w", err)
 		}
@@ -73,6 +94,15 @@ func (lm *LogMgrImpl) Flush(lsn int) error {
 	return lm.flush()
 }
 
+func (lm *LogMgrImpl) flush() error {
+	err := lm.fileMgr.Write(lm.currentBlock, lm.page)
+	if err != nil {
+		return err
+	}
+	lm.lastSavedLSN = lm.latestLSN
+	return nil
+}
+
 func (lm *LogMgrImpl) Iterator() (LogIterator, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
@@ -94,18 +124,8 @@ func (lm *LogMgrImpl) appendNewBlock() (file.BlockId, error) {
 	return block, nil
 }
 
-func (lm *LogMgrImpl) flush() error {
-	err := lm.fileMgr.Write(lm.currentBlock, lm.page)
-	if err != nil {
-		return err
-	}
-	lm.lastSavedLSN = lm.latestLSN
-	return nil
-}
-
-func (lm *LogMgrImpl) hasWritableSpace(size int) bool {
-	const intSize = 4
-	return lm.getLastOffset()-size >= intSize
+func (lm *LogMgrImpl) hasInsufficientSpace(size int) bool {
+	return lm.getLastOffset() < OFFSET_SIZE+size
 }
 
 func (lm *LogMgrImpl) getLastOffset() int {
