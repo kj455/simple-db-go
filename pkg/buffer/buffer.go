@@ -7,6 +7,11 @@ import (
 	"github.com/kj455/db/pkg/log"
 )
 
+const (
+	INIT_TX_NUM = -1
+	INIT_LSN    = -1
+)
+
 type ReadPage interface {
 	GetInt(offset int) uint32
 	GetBytes(offset int) []byte
@@ -39,10 +44,9 @@ func NewBuffer(fm file.FileMgr, lm log.LogMgr, blockSize int) *BufferImpl {
 		fileMgr:  fm,
 		logMgr:   lm,
 		contents: file.NewPage(blockSize),
-		block:    nil,
 		pins:     0,
-		txNum:    -1,
-		lsn:      -1,
+		txNum:    INIT_TX_NUM,
+		lsn:      INIT_LSN,
 	}
 }
 
@@ -69,7 +73,7 @@ func (b *BufferImpl) ModifyingTx() int {
 
 func (b *BufferImpl) AssignToBlock(block file.BlockId) error {
 	if err := b.Flush(); err != nil {
-		return fmt.Errorf("buffer: failed to flush: %w", err)
+		return err
 	}
 	if err := b.fileMgr.Read(block, b.contents); err != nil {
 		return fmt.Errorf("buffer: failed to read block: %w", err)
@@ -80,7 +84,7 @@ func (b *BufferImpl) AssignToBlock(block file.BlockId) error {
 }
 
 func (b *BufferImpl) Flush() error {
-	if b.txNum < 0 {
+	if b.txNum == INIT_TX_NUM {
 		return nil
 	}
 	if err := b.logMgr.Flush(b.lsn); err != nil {
@@ -89,7 +93,7 @@ func (b *BufferImpl) Flush() error {
 	if err := b.fileMgr.Write(b.block, b.contents); err != nil {
 		return fmt.Errorf("buffer: failed to write block: %w", err)
 	}
-	b.txNum = -1
+	b.txNum = INIT_TX_NUM
 	return nil
 }
 
@@ -103,7 +107,7 @@ func (b *BufferImpl) Unpin() {
 
 func (b *BufferImpl) setModified(txNum, lsn int) {
 	b.txNum = txNum
-	if lsn >= 0 {
+	if lsn > INIT_LSN {
 		b.lsn = lsn
 	}
 }

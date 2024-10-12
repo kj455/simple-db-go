@@ -3,130 +3,110 @@ package buffer
 import (
 	"testing"
 
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/log/mock"
-	tmock "github.com/kj455/db/pkg/time/mock"
+	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
-type mocks struct {
-	fileMgr *fmock.MockFileMgr
-	page    *fmock.MockPage
-	block   *fmock.MockBlockId
-	logMgr  *lmock.MockLogMgr
-	time    *tmock.MockTime
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{
-		fileMgr: fmock.NewMockFileMgr(ctrl),
-		page:    fmock.NewMockPage(ctrl),
-		block:   fmock.NewMockBlockId(ctrl),
-		logMgr:  lmock.NewMockLogMgr(ctrl),
-		time:    tmock.NewMockTime(ctrl),
-	}
-}
-
-func TestNewBuffer(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fm := fmock.NewMockFileMgr(ctrl)
-	lm := lmock.NewMockLogMgr(ctrl)
-
-	b := NewBuffer(fm, lm, 400)
-
-	assert.NotNil(t, b)
-	assert.Equal(t, fm, b.fileMgr)
-	assert.Equal(t, lm, b.logMgr)
-	assert.NotNil(t, b.contents)
-	assert.Nil(t, b.block)
-	assert.Equal(t, 0, b.pins)
-	assert.Equal(t, -1, b.txNum)
-	assert.Equal(t, -1, b.lsn)
-}
-
-func TestBuffer_IsPinned(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fm := fmock.NewMockFileMgr(ctrl)
-	lm := lmock.NewMockLogMgr(ctrl)
-
-	b := NewBuffer(fm, lm, 400)
-
-	assert.False(t, b.IsPinned())
-	b.pins++
-	assert.True(t, b.IsPinned())
-}
-
 func TestBuffer_WriteContents(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	const (
+		blockSize   = 400
+		logFileName = "test_buffer_write_contents"
+		txNum       = 1
+		lsn         = 2
+	)
+	dir, _, cleanup := testutil.SetupFile(logFileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+	assert.NoError(t, err)
+	buf := NewBuffer(fileMgr, logMgr, blockSize)
 
-	fm := fmock.NewMockFileMgr(ctrl)
-	lm := lmock.NewMockLogMgr(ctrl)
-
-	b := NewBuffer(fm, lm, 400)
-
-	b.WriteContents(1, 2, func(p ReadWritePage) {
-		p.SetInt(0, 1)
+	buf.WriteContents(txNum, lsn, func(p ReadWritePage) {
+		p.SetInt(100, 200)
 	})
-	assert.Equal(t, uint32(1), b.contents.GetInt(0))
-	assert.Equal(t, 1, b.txNum)
-	assert.Equal(t, 2, b.lsn)
+
+	assert.Equal(t, uint32(200), buf.contents.GetInt(100))
+	assert.Equal(t, txNum, buf.ModifyingTx())
+	assert.Equal(t, lsn, buf.lsn)
 }
 
-func TestBuffer_AssignToBlock(t *testing.T) {
+func TestBuffer_Flush(t *testing.T) {
+	t.Parallel()
 	const (
 		blockSize = 400
 		tx        = 1
 		lsn       = 2
 	)
-	tests := []struct {
-		name   string
-		setup  func(m *mocks, b *BufferImpl)
-		expect func(res error, b *BufferImpl)
-	}{
-		{
-			name: "assign",
-			setup: func(m *mocks, b *BufferImpl) {
-				m.fileMgr.EXPECT().Read(m.block, gomock.Any()).Return(nil)
-			},
-			expect: func(res error, b *BufferImpl) {
-				assert.Nil(t, res)
-				assert.Equal(t, 0, b.pins)
-				assert.Equal(t, -1, b.txNum)
-			},
-		},
-		{
-			name: "flush and assign",
-			setup: func(m *mocks, b *BufferImpl) {
-				b.txNum = tx
-				b.lsn = lsn
-				m.logMgr.EXPECT().Flush(lsn).Return(nil)
-				m.fileMgr.EXPECT().Write(nil, gomock.Any()).Return(nil)
-				m.fileMgr.EXPECT().Read(m.block, gomock.Any()).Return(nil)
-			},
-			expect: func(res error, b *BufferImpl) {
-				assert.Nil(t, res)
-				assert.Equal(t, 0, b.pins)
-				assert.Equal(t, -1, b.txNum)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+	t.Run("skip flush", func(t *testing.T) {
+		t.Parallel()
+		const logFileName = "test_buffer_flush_skip"
+		dir, _, cleanup := testutil.SetupFile(logFileName)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+		assert.NoError(t, err)
+		buf := NewBuffer(fileMgr, logMgr, blockSize)
 
-			m := newMocks(ctrl)
-			b := NewBuffer(m.fileMgr, m.logMgr, blockSize)
-			tt.setup(m, b)
+		buf.Flush()
 
-			err := b.AssignToBlock(m.block)
-			tt.expect(err, b)
+		assert.Equal(t, INIT_TX_NUM, buf.ModifyingTx())
+		assert.Equal(t, INIT_LSN, buf.lsn)
+	})
+	t.Run("flush", func(t *testing.T) {
+		t.Parallel()
+		const logFileName = "test_buffer_flush"
+		dir, _, cleanup := testutil.SetupFile(logFileName)
+		defer cleanup()
+		fileMgr := file.NewFileMgr(dir, blockSize)
+		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+		assert.NoError(t, err)
+		buf := NewBuffer(fileMgr, logMgr, blockSize)
+		buf.block = file.NewBlockId(logFileName, 0)
+		// setup not flushed buffer
+		buf.logMgr.Append([]byte("test"))
+		buf.WriteContents(tx, lsn, func(p ReadWritePage) {
+			p.SetInt(100, 200)
 		})
-	}
+
+		buf.Flush()
+
+		assert.Equal(t, INIT_TX_NUM, buf.ModifyingTx())
+		assert.Equal(t, lsn, buf.lsn)
+		iter, err := logMgr.Iterator()
+		assert.NoError(t, err)
+		assert.True(t, iter.HasNext())
+		record, err := iter.Next()
+		assert.NoError(t, err)
+		assert.Equal(t, []byte("test"), record)
+	})
+}
+
+func TestBuffer_AssignToBlock__(t *testing.T) {
+	const (
+		blockSize   = 400
+		blockNum    = 0
+		tx          = 1
+		lsn         = 2
+		logFileName = "test_buffer_assign_to_block"
+	)
+	dir, _, cleanup := testutil.SetupFile(logFileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+	assert.NoError(t, err)
+	buf := NewBuffer(fileMgr, logMgr, blockSize)
+	buf.pins = 99
+	// setup block content
+	page := file.NewPage(blockSize)
+	page.SetInt(100, 200)
+	block := file.NewBlockId(logFileName, blockNum)
+	fileMgr.Write(block, page)
+
+	buf.AssignToBlock(block)
+
+	assert.Equal(t, block, buf.Block())
+	assert.Equal(t, 0, buf.pins)
+	assert.Equal(t, uint32(200), buf.Contents().GetInt(100))
 }
