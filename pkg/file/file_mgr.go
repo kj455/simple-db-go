@@ -29,41 +29,41 @@ func NewFileMgr(dbDir string, blockSize int) *FileMgrImpl {
 	}
 }
 
-// Read reads a page from the file.
+// Read reads contents on a block from the file and stores it in the page.
 func (m *FileMgrImpl) Read(id BlockId, p Page) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	f, err := m.getFile(id.Filename())
 	if err != nil {
-		return fmt.Errorf("cannot open file %s: %w", id.Filename(), err)
+		return fmt.Errorf("file: cannot open file %s: %w", id.Filename(), err)
 	}
 
 	_, err = f.Seek(int64(id.Number())*int64(m.blockSize), 0)
 	if err != nil {
-		return fmt.Errorf("cannot seek to block %d: %w", id.Number(), err)
+		return fmt.Errorf("file: cannot seek to block %d: %w", id.Number(), err)
 	}
 
 	_, err = f.Read(p.Contents().Bytes())
-	if errors.Is(io.EOF, err) {
+	if errors.Is(err, io.EOF) {
 		return nil
 	}
 	return err
 }
 
-// Write writes a page to the file.
+// Write writes page contents to a block in the file.
 func (m *FileMgrImpl) Write(id BlockId, p Page) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	f, err := m.getFile(id.Filename())
 	if err != nil {
-		return fmt.Errorf("cannot open file %s: %w", id.Filename(), err)
+		return fmt.Errorf("file: cannot open file %s: %w", id.Filename(), err)
 	}
 
 	_, err = f.Seek(int64(id.Number())*int64(m.blockSize), 0)
 	if err != nil {
-		return fmt.Errorf("cannot seek to block %d: %w", id.Number(), err)
+		return fmt.Errorf("file: cannot seek to block %d: %w", id.Number(), err)
 	}
 
 	_, err = f.Write(p.Contents().Bytes())
@@ -77,20 +77,20 @@ func (m *FileMgrImpl) Append(filename string) (BlockId, error) {
 
 	f, err := m.getFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file %s: %w", filename, err)
+		return nil, fmt.Errorf("file: cannot open file %s: %w", filename, err)
 	}
 
 	blockNum := m.getBlockNum(filename)
 	block := NewBlockId(filename, blockNum)
 	_, err = f.Seek(int64(block.blockNum)*int64(m.blockSize), 0)
 	if err != nil {
-		return nil, fmt.Errorf("cannot seek to block %d: %w", block.blockNum, err)
+		return nil, fmt.Errorf("file: cannot seek to block %d: %w", block.blockNum, err)
 	}
 
 	buf := make([]byte, m.blockSize)
 	_, err = f.Write(buf)
 	if err != nil {
-		return nil, fmt.Errorf("cannot write to block %d: %w", block.blockNum, err)
+		return nil, fmt.Errorf("file: cannot write to block %d: %w", block.blockNum, err)
 	}
 
 	return block, nil

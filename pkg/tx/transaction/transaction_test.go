@@ -78,8 +78,8 @@ func newMockTransaction(m *mocks) *TransactionImpl {
 func TestTransaction_Integration(t *testing.T) {
 	t.Parallel()
 	const (
-		filename    = "testfile"
-		logFilename = "testlogfile"
+		filename    = "test_tx_integration"
+		logFilename = "test_tx_integration_log"
 		blockSize   = 400
 	)
 	rootDir := testutil.ProjectRootDir()
