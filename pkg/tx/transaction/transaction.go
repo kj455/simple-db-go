@@ -3,6 +3,7 @@ package transaction
 import (
 	"fmt"
 
+	"github.com/kj455/db/pkg/buffer"
 	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/log"
@@ -115,7 +116,7 @@ func (t *TransactionImpl) SetInt(block file.BlockId, offset int, val int, okToLo
 			return fmt.Errorf("tx: failed to set int: %w", err)
 		}
 	}
-	buff.WriteContents(t.txNum, lsn, func(p file.ReadWritePage) {
+	buff.WriteContents(t.txNum, lsn, func(p buffer.ReadWritePage) {
 		p.SetInt(offset, uint32(val))
 	})
 	return nil
@@ -137,7 +138,7 @@ func (t *TransactionImpl) SetString(block file.BlockId, offset int, val string, 
 			return fmt.Errorf("tx: failed to set string: %w", err)
 		}
 	}
-	buff.WriteContents(t.txNum, lsn, func(p file.ReadWritePage) {
+	buff.WriteContents(t.txNum, lsn, func(p buffer.ReadWritePage) {
 		p.SetString(offset, val)
 	})
 	return nil

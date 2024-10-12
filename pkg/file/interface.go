@@ -12,25 +12,13 @@ type BlockId interface {
 
 // Page holds the contents of a disk block.
 type Page interface {
-	ReadWritePage
-	Contents() *bytes.Buffer
-}
-
-type ReadWritePage interface {
-	ReadPage
-	WritePage
-}
-
-type ReadPage interface {
 	GetInt(offset int) uint32
 	GetBytes(offset int) []byte
 	GetString(offset int) string
-}
-
-type WritePage interface {
 	SetInt(offset int, value uint32)
 	SetBytes(offset int, value []byte)
 	SetString(offset int, value string)
+	Contents() *bytes.Buffer
 }
 
 // FileMgr handles the actual interaction with the OS file system.

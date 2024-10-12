@@ -3,7 +3,6 @@ package buffer
 import (
 	"testing"
 
-	"github.com/kj455/db/pkg/file"
 	fmock "github.com/kj455/db/pkg/file/mock"
 	lmock "github.com/kj455/db/pkg/log/mock"
 	tmock "github.com/kj455/db/pkg/time/mock"
@@ -71,7 +70,7 @@ func TestBuffer_WriteContents(t *testing.T) {
 
 	b := NewBuffer(fm, lm, 400)
 
-	b.WriteContents(1, 2, func(p file.ReadWritePage) {
+	b.WriteContents(1, 2, func(p ReadWritePage) {
 		p.SetInt(0, 1)
 	})
 	assert.Equal(t, uint32(1), b.contents.GetInt(0))

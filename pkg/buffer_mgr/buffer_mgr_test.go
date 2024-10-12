@@ -77,12 +77,12 @@ func TestBufferFile(t *testing.T) {
 
 	b1, err := bm.Pin(blk)
 	require.NoError(t, err)
-	b1.WriteContents(1, 0, func(p file.ReadWritePage) {
+	b1.WriteContents(1, 0, func(p buffer.ReadWritePage) {
 		p.SetString(pos1, "abcdefghijklm")
 	})
 	size := file.MaxLength(len("abcdefghijklm"))
 	pos2 := pos1 + size
-	b1.WriteContents(1, 0, func(p file.ReadWritePage) {
+	b1.WriteContents(1, 0, func(p buffer.ReadWritePage) {
 		p.SetInt(pos2, 345)
 	})
 	bm.Unpin(b1)

@@ -7,6 +7,23 @@ import (
 	"github.com/kj455/db/pkg/log"
 )
 
+type ReadPage interface {
+	GetInt(offset int) uint32
+	GetBytes(offset int) []byte
+	GetString(offset int) string
+}
+
+type WritePage interface {
+	SetInt(offset int, value uint32)
+	SetBytes(offset int, value []byte)
+	SetString(offset int, value string)
+}
+
+type ReadWritePage interface {
+	ReadPage
+	WritePage
+}
+
 type BufferImpl struct {
 	fileMgr  file.FileMgr
 	logMgr   log.LogMgr
@@ -29,11 +46,11 @@ func NewBuffer(fm file.FileMgr, lm log.LogMgr, blockSize int) *BufferImpl {
 	}
 }
 
-func (b *BufferImpl) Contents() file.ReadPage {
+func (b *BufferImpl) Contents() ReadPage {
 	return b.contents
 }
 
-func (b *BufferImpl) WriteContents(txNum, lsn int, write func(p file.ReadWritePage)) {
+func (b *BufferImpl) WriteContents(txNum, lsn int, write func(p ReadWritePage)) {
 	b.setModified(txNum, lsn)
 	write(b.contents)
 }
