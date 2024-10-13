@@ -8,6 +8,13 @@ import (
 	"github.com/kj455/db/pkg/tx"
 )
 
+/*
+------------------------------------------------
+|   0  |   4   |  8   | n     | n+4    | n+8  |
+------------------------------------------------
+|  op  | txNum | file | block | offset | value |
+------------------------------------------------
+*/
 type SetStringRecord struct {
 	txNum  int
 	offset int
@@ -16,16 +23,17 @@ type SetStringRecord struct {
 }
 
 func NewSetStringRecord(p file.Page) *SetStringRecord {
-	txPos := OpSize
+	const biteSize = 4
+	txPos := OffsetTxNum
 	txNum := p.GetInt(txPos)
-	fnPos := txPos + 4
+	fnPos := txPos + biteSize
 	filename := p.GetString(fnPos)
 	blkPos := fnPos + file.MaxLength(len(filename))
-	blockNum := p.GetInt(blkPos)
-	block := file.NewBlockId(filename, int(blockNum))
-	offPos := blkPos + 4
+	blkNum := p.GetInt(blkPos)
+	block := file.NewBlockId(filename, int(blkNum))
+	offPos := blkPos + biteSize
 	offset := p.GetInt(offPos)
-	valPos := offPos + 4
+	valPos := offPos + biteSize
 	val := p.GetString(valPos)
 	return &SetStringRecord{
 		txNum:  int(txNum),
@@ -36,7 +44,7 @@ func NewSetStringRecord(p file.Page) *SetStringRecord {
 }
 
 func (r *SetStringRecord) Op() Op {
-	return SET_STRING
+	return OP_SET_STRING
 }
 
 func (r *SetStringRecord) TxNum() int {
@@ -47,7 +55,7 @@ func (r *SetStringRecord) Undo(tx tx.Transaction) error {
 	if err := tx.Pin(r.block); err != nil {
 		return err
 	}
-	// false: don't log the undo
+	// don't log the undo
 	if err := tx.SetString(r.block, r.offset, r.val, false); err != nil {
 		return err
 	}
@@ -60,7 +68,7 @@ func (r *SetStringRecord) String() string {
 }
 
 func WriteSetStringRecordToLog(lm log.LogMgr, txNum int, block file.BlockId, offset int, val string) (int, error) {
-	tpos := OpSize
+	tpos := OffsetTxNum
 	fpos := tpos + 4
 	bpos := fpos + file.MaxLength(len(block.Filename()))
 	opos := bpos + 4
@@ -68,7 +76,7 @@ func WriteSetStringRecordToLog(lm log.LogMgr, txNum int, block file.BlockId, off
 	recordLen := vpos + file.MaxLength(len(val))
 	record := make([]byte, recordLen)
 	p := file.NewPageFromBytes(record)
-	p.SetInt(0, uint32(SET_STRING))
+	p.SetInt(0, uint32(OP_SET_STRING))
 	p.SetInt(tpos, uint32(txNum))
 	p.SetString(fpos, block.Filename())
 	p.SetInt(bpos, uint32(block.Number()))

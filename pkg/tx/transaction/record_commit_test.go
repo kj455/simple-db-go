@@ -3,71 +3,56 @@ package transaction
 import (
 	"testing"
 
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/log/mock"
+	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewCommitRecord(t *testing.T) {
+	t.Parallel()
 	const txNum = 1
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	page := fmock.NewMockPage(ctrl)
-	page.EXPECT().GetInt(OpSize).Return(uint32(txNum))
+	page := file.NewPage(8)
+	page.SetInt(OffsetOp, uint32(OP_COMMIT))
+	page.SetInt(OffsetTxNum, uint32(txNum))
 
 	record := NewCommitRecord(page)
 
-	assert.Equal(t, COMMIT, record.Op())
+	assert.Equal(t, OP_COMMIT, record.Op())
 	assert.Equal(t, txNum, record.TxNum())
-}
-
-func TestCommitRecordOp(t *testing.T) {
-	record := CommitRecord{}
-	assert.Equal(t, COMMIT, record.Op())
-}
-
-func TestCommitRecordTxNum(t *testing.T) {
-	const txNum = 1
-	record := CommitRecord{
-		txNum: txNum,
-	}
-	assert.Equal(t, txNum, record.TxNum())
-}
-
-func TestCommitRecordUndo(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	const txNum = 1
-	record := CommitRecord{
-		txNum: txNum,
-	}
-	record.Undo(nil)
-}
-
-func TestCommitRecordString(t *testing.T) {
-	const txNum = 1
-	record := CommitRecord{
-		txNum: txNum,
-	}
+	assert.NoError(t, record.Undo(nil))
 	assert.Equal(t, "<COMMIT 1>", record.String())
 }
 
 func TestWriteCommitRecordToLog(t *testing.T) {
+	t.Parallel()
 	const (
-		txNum = 1
-		lsn   = 2
+		txNum     = 1
+		blockSize = 400
+		fileName  = "test_write_commit_record_to_log"
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	lm := lmock.NewMockLogMgr(ctrl)
-	lm.EXPECT().Append([]byte{
-		0, 0, 0, 2, // COMMIT
-		0, 0, 0, 1, // txNum
-	}).Return(lsn, nil)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	lm, err := log.NewLogMgr(fileMgr, fileName)
+	assert.NoError(t, err)
 
-	got, err := WriteCommitRecordToLog(lm, txNum)
+	lsn, err := WriteCommitRecordToLog(lm, txNum)
 
 	assert.NoError(t, err)
-	assert.Equal(t, lsn, got)
+	assert.Equal(t, 1, lsn)
+
+	iter, err := lm.Iterator()
+
+	assert.NoError(t, err)
+	assert.True(t, iter.HasNext())
+
+	record, err := iter.Next()
+
+	assert.NoError(t, err)
+
+	page := file.NewPageFromBytes(record)
+
+	assert.Equal(t, OP_COMMIT, Op(page.GetInt(OffsetOp)))
+	assert.Equal(t, txNum, int(page.GetInt(OffsetTxNum)))
 }

@@ -64,7 +64,7 @@ func NewLogMgr(fm file.FileMgr, filename string) (*LogMgrImpl, error) {
 }
 
 // Append appends a record to the log backwardly and returns the LSN of the record.
-func (lm *LogMgrImpl) Append(record []byte) (int, error) {
+func (lm *LogMgrImpl) Append(record []byte) (lsn int, err error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	bytesNeeded := len(record) + OFFSET_SIZE

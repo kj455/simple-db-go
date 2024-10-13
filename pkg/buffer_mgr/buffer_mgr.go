@@ -109,7 +109,6 @@ func (bm *BufferMgrImpl) hasWaitedTooLong(startTime time.Time) bool {
 
 func (bm *BufferMgrImpl) tryPin(block file.BlockId) (buffer.Buffer, bool) {
 	buff, ok := bm.findBufferByBlock(block)
-	fmt.Println("ok", ok)
 	if !ok {
 		buff, ok = bm.findUnpinnedBuffer()
 		if !ok {

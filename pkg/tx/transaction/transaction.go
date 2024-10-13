@@ -110,8 +110,9 @@ func (t *TransactionImpl) SetInt(block file.BlockId, offset int, val int, okToLo
 	}
 	var lsn int = -1
 	if okToLog {
+		oldVal := buff.Contents().GetInt(offset)
 		var err error
-		lsn, err = t.recoveryMgr.SetInt(buff, offset, val)
+		lsn, err = t.recoveryMgr.SetInt(buff, offset, int(oldVal))
 		if err != nil {
 			return fmt.Errorf("tx: failed to set int: %w", err)
 		}

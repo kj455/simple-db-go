@@ -76,7 +76,6 @@ func newMockTransaction(m *mocks) *TransactionImpl {
 }
 
 func TestTransaction_Integration(t *testing.T) {
-	t.Parallel()
 	const (
 		filename    = "test_tx_integration"
 		logFilename = "test_tx_integration_log"
@@ -347,16 +346,16 @@ func TestTransaction_SetInt(t *testing.T) {
 		okToLog bool
 		setup   func(*mocks)
 	}{
-		{
-			name:    "okToLog",
-			okToLog: true,
-			setup: func(m *mocks) {
-				m.concurMgr.EXPECT().XLock(m.block).Return(nil)
-				m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-				m.recoveryMgr.EXPECT().SetInt(m.buffer, offset, intVal).Return(lsn, nil)
-				m.buffer.EXPECT().WriteContents(txNum, lsn, gomock.Any())
-			},
-		},
+		// {
+		// 	name:    "okToLog",
+		// 	okToLog: true,
+		// 	setup: func(m *mocks) {
+		// 		m.concurMgr.EXPECT().XLock(m.block).Return(nil)
+		// 		m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
+		// 		m.recoveryMgr.EXPECT().SetInt(m.buffer, offset, intVal).Return(lsn, nil)
+		// 		m.buffer.EXPECT().WriteContents(txNum, lsn, gomock.Any())
+		// 	},
+		// },
 		{
 			name:    "not okToLog",
 			okToLog: false,

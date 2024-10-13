@@ -15,7 +15,7 @@ func NewCheckpointRecord() *CheckpointRecord {
 }
 
 func (r *CheckpointRecord) Op() Op {
-	return CHECKPOINT
+	return OP_CHECKPOINT
 }
 
 func (r *CheckpointRecord) TxNum() int {
@@ -31,8 +31,8 @@ func (r *CheckpointRecord) String() string {
 }
 
 func WriteCheckpointRecordToLog(lm log.LogMgr) (int, error) {
-	record := make([]byte, OpSize)
+	record := make([]byte, OffsetTxNum)
 	p := file.NewPageFromBytes(record)
-	p.SetInt(0, uint32(CHECKPOINT))
+	p.SetInt(0, uint32(OP_CHECKPOINT))
 	return lm.Append(record)
 }

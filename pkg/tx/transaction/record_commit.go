@@ -13,7 +13,7 @@ type CommitRecord struct {
 }
 
 func NewCommitRecord(p file.Page) *CommitRecord {
-	tpos := OpSize
+	tpos := OffsetTxNum
 	txNum := p.GetInt(tpos)
 	return &CommitRecord{
 		txNum: int(txNum),
@@ -21,7 +21,7 @@ func NewCommitRecord(p file.Page) *CommitRecord {
 }
 
 func (r *CommitRecord) Op() Op {
-	return COMMIT
+	return OP_COMMIT
 }
 
 func (r *CommitRecord) TxNum() int {
@@ -38,9 +38,9 @@ func (r *CommitRecord) String() string {
 
 func WriteCommitRecordToLog(lm log.LogMgr, txNum int) (int, error) {
 	const txNumSize = 4
-	record := make([]byte, OpSize+txNumSize)
+	record := make([]byte, OffsetTxNum+txNumSize)
 	p := file.NewPageFromBytes(record)
-	p.SetInt(0, uint32(COMMIT))
+	p.SetInt(0, uint32(OP_COMMIT))
 	p.SetInt(4, uint32(txNum))
 	return lm.Append(record)
 }

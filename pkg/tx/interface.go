@@ -14,6 +14,8 @@ type Transaction interface {
 	Unpin(block file.BlockId)
 	GetInt(block file.BlockId, offset int) (int, error)
 	GetString(block file.BlockId, offset int) (string, error)
+	// SetInt sets the value of the specified block at the specified offset.
+	// If okToLog is true, then the method logs the change.
 	SetInt(block file.BlockId, offset int, val int, okToLog bool) error
 	SetString(block file.BlockId, offset int, val string, okToLog bool) error
 	AvailableBuffs() int
@@ -28,8 +30,8 @@ type RecoveryMgr interface {
 	Commit() error
 	Rollback() error
 	Recover() error
-	SetInt(buff buffer.Buffer, offset int, val int) (int, error)
-	SetString(buff buffer.Buffer, offset int, val string) (int, error)
+	SetInt(buff buffer.Buffer, offset int, oldVal int) (int, error)
+	SetString(buff buffer.Buffer, offset int, oldVal string) (int, error)
 }
 
 type ConcurrencyMgr interface {
