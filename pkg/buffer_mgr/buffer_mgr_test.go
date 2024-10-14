@@ -127,7 +127,7 @@ func TestBufferMgrImpl_Unpin(t *testing.T) {
 	})
 }
 
-func TestBufferMgrImpl_FlushAll__(t *testing.T) {
+func TestBufferMgrImpl_FlushAll(t *testing.T) {
 	t.Parallel()
 	t.Run("flush only matched txNum", func(t *testing.T) {
 		t.Parallel()

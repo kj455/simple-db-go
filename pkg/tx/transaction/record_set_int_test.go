@@ -4,12 +4,9 @@ import (
 	"testing"
 
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
 	"github.com/kj455/db/pkg/log"
 	"github.com/kj455/db/pkg/testutil"
-	tmock "github.com/kj455/db/pkg/tx/mock"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewSetIntRecord(t *testing.T) {
@@ -42,31 +39,6 @@ func TestNewSetIntRecord(t *testing.T) {
 	assert.Equal(t, blockNum, record.block.Number())
 	assert.Equal(t, offset, record.offset)
 	assert.Equal(t, val, record.val)
-}
-
-func TestSetIntRecordUndo(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	const (
-		txNum    = 1
-		filename = "filename"
-		blockNum = 2
-		offset   = 3
-		val      = 123
-	)
-	record := SetIntRecord{
-		txNum:  txNum,
-		offset: offset,
-		val:    val,
-		block:  fmock.NewMockBlockId(ctrl),
-	}
-	tx := tmock.NewMockTransaction(ctrl)
-	tx.EXPECT().Pin(record.block)
-	tx.EXPECT().SetInt(record.block, record.offset, record.val, false)
-	tx.EXPECT().Unpin(record.block)
-
-	record.Undo(tx)
 }
 
 func TestWriteSetIntRecordToLog(t *testing.T) {

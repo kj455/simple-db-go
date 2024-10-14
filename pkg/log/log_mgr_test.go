@@ -101,7 +101,7 @@ func TestLogMgr_Append(t *testing.T) {
 	})
 }
 
-func TestLogMgr_Flush__(t *testing.T) {
+func TestLogMgr_Flush(t *testing.T) {
 	t.Parallel()
 	t.Run("flush past lsn", func(t *testing.T) {
 		t.Parallel()

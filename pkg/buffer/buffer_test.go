@@ -83,7 +83,7 @@ func TestBuffer_Flush(t *testing.T) {
 	})
 }
 
-func TestBuffer_AssignToBlock__(t *testing.T) {
+func TestBuffer_AssignToBlock(t *testing.T) {
 	const (
 		blockSize   = 400
 		blockNum    = 0

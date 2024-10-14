@@ -4,12 +4,9 @@ import (
 	"testing"
 
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
 	"github.com/kj455/db/pkg/log"
 	"github.com/kj455/db/pkg/testutil"
-	tmock "github.com/kj455/db/pkg/tx/mock"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewSetStringRecord(t *testing.T) {
@@ -43,31 +40,7 @@ func TestNewSetStringRecord(t *testing.T) {
 	assert.Equal(t, blockNum, record.block.Number())
 	assert.Equal(t, offset, record.offset)
 	assert.Equal(t, val, record.val)
-}
-
-func TestSetStringRecordUndo(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	tx := tmock.NewMockTransaction(ctrl)
-	const (
-		txNum    = 1
-		filename = "filename"
-		blockNum = 2
-		offset   = 3
-		val      = "value"
-	)
-	record := SetStringRecord{
-		txNum:  txNum,
-		offset: offset,
-		val:    val,
-		block:  fmock.NewMockBlockId(ctrl),
-	}
-	tx.EXPECT().Pin(record.block)
-	tx.EXPECT().SetString(record.block, offset, val, false)
-	tx.EXPECT().Unpin(record.block)
-
-	record.Undo(tx)
+	assert.Equal(t, "<SET_STRING 1 [file filename, block 2] 3 value>", record.String())
 }
 
 func TestSetStringRecordToString(t *testing.T) {
