@@ -9,7 +9,7 @@ type RIDImpl struct {
 
 // NewRID creates a new RID for the record having the
 // specified location in the specified block.
-func NewRID(blknum, slot int) RID {
+func NewRID(blknum, slot int) *RIDImpl {
 	return &RIDImpl{blknum: blknum, slot: slot}
 }
 

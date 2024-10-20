@@ -12,6 +12,16 @@ const (
 	SLOT_USED  SlotFlag = 1
 )
 
+const SLOT_INIT = -1
+
+/*
+RecordPage represents a page of records in a file.
+The format of the page is as follows:
+----------------------------------------
+| slot 0 | slot 1 | ... | slot n | ... |
+| 1 | R0 | 0 | R1 | ... | 0 | Rx | ... |
+----------------------------------------
+*/
 type RecordPageImpl struct {
 	tx     tx.Transaction
 	blk    file.BlockId
@@ -53,6 +63,7 @@ func (rp *RecordPageImpl) Delete(slot int) error {
 	return rp.setFlag(slot, SLOT_EMPTY)
 }
 
+// Format initializes all the slots on the page to empty.
 func (rp *RecordPageImpl) Format() error {
 	slot := 0
 	schema := rp.layout.Schema()
@@ -82,15 +93,19 @@ func (rp *RecordPageImpl) Format() error {
 	return nil
 }
 
+// NextAfter returns the next slot after the given slot.
+// If no such slot is found, it returns -1.
 func (rp *RecordPageImpl) NextAfter(slot int) int {
 	return rp.searchAfter(slot, SLOT_USED)
 }
 
+// InsertAfter inserts a new record after the given slot.
+// If no such slot is found, it returns -1.
 func (rp *RecordPageImpl) InsertAfter(slot int) (int, error) {
 	newSlot := rp.searchAfter(slot, SLOT_EMPTY)
 	if newSlot >= 0 {
 		if err := rp.setFlag(newSlot, SLOT_USED); err != nil {
-			return -1, err
+			return SLOT_INIT, err
 		}
 	}
 	return newSlot, nil
@@ -107,15 +122,15 @@ func (rp *RecordPageImpl) setFlag(slot int, flag SlotFlag) error {
 // searchAfter finds the next slot with the given flag.
 // If no such slot is found, it returns -1.
 func (rp *RecordPageImpl) searchAfter(slot int, flag SlotFlag) int {
-	slot++
-	for rp.isValidSlot(slot) {
-		val, _ := rp.tx.GetInt(rp.blk, rp.offset(slot))
+	sl := slot + 1
+	for rp.isValidSlot(sl) {
+		val, _ := rp.tx.GetInt(rp.blk, rp.offset(sl))
 		if val == int(flag) {
-			return slot
+			return sl
 		}
-		slot++
+		sl++
 	}
-	return -1
+	return SLOT_INIT
 }
 
 func (rp *RecordPageImpl) isValidSlot(slot int) bool {

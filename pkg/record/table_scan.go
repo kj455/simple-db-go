@@ -9,11 +9,11 @@ import (
 )
 
 type TableScanImpl struct {
-	tx       tx.Transaction
-	layout   Layout
-	rp       RecordPage
-	filename string
-	curSlot  int
+	tx         tx.Transaction
+	layout     Layout
+	recordPage RecordPage
+	filename   string
+	curSlot    int
 }
 
 const TABLE_SUFFIX = ".tbl"
@@ -24,8 +24,10 @@ func NewTableScan(tx tx.Transaction, table string, layout Layout) (*TableScanImp
 		layout:   layout,
 		filename: table + TABLE_SUFFIX,
 	}
-	size, _ := tx.Size(ts.filename)
-	var err error
+	size, err := tx.Size(ts.filename)
+	if err != nil {
+		return nil, fmt.Errorf("record: failed to get size of %s: %w", ts.filename, err)
+	}
 	if size == 0 {
 		err = ts.moveToNewBlock()
 	} else {
@@ -42,33 +44,33 @@ func (ts *TableScanImpl) BeforeFirst() error {
 }
 
 func (ts *TableScanImpl) Next() bool {
-	ts.curSlot = ts.rp.NextAfter(ts.curSlot)
+	ts.curSlot = ts.recordPage.NextAfter(ts.curSlot)
 	for ts.curSlot < 0 {
 		if ts.atLastBlock() {
 			return false
 		}
-		err := ts.moveToBlock(ts.rp.Block().Number() + 1)
+		err := ts.moveToBlock(ts.recordPage.Block().Number() + 1)
 		if err != nil {
 			fmt.Println("record: table scan: next: ", err)
 			return false
 		}
-		ts.curSlot = ts.rp.NextAfter(ts.curSlot)
+		ts.curSlot = ts.recordPage.NextAfter(ts.curSlot)
 	}
 	return true
 }
 
 func (ts *TableScanImpl) GetInt(field string) (int, error) {
-	return ts.rp.GetInt(ts.curSlot, field)
+	return ts.recordPage.GetInt(ts.curSlot, field)
 }
 
 func (ts *TableScanImpl) GetString(field string) (string, error) {
-	return ts.rp.GetString(ts.curSlot, field)
+	return ts.recordPage.GetString(ts.curSlot, field)
 }
 
 func (ts *TableScanImpl) GetVal(field string) (*constant.Const, error) {
 	schemaType, err := ts.layout.Schema().Type(field)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("record: failed to get type: %w", err)
 	}
 	switch schemaType {
 	case SCHEMA_TYPE_INTEGER:
@@ -84,7 +86,7 @@ func (ts *TableScanImpl) GetVal(field string) (*constant.Const, error) {
 		}
 		return constant.NewConstant(constant.KIND_STR, v)
 	default:
-		return nil, fmt.Errorf("record: table scan: get val: unknown type %v", schemaType)
+		return nil, fmt.Errorf("record: unknown schema type %v", schemaType)
 	}
 }
 
@@ -93,17 +95,17 @@ func (ts *TableScanImpl) HasField(field string) bool {
 }
 
 func (ts *TableScanImpl) Close() {
-	if ts.rp != nil {
-		ts.tx.Unpin(ts.rp.Block())
+	if ts.recordPage != nil {
+		ts.tx.Unpin(ts.recordPage.Block())
 	}
 }
 
 func (ts *TableScanImpl) SetInt(field string, val int) error {
-	return ts.rp.SetInt(ts.curSlot, field, val)
+	return ts.recordPage.SetInt(ts.curSlot, field, val)
 }
 
 func (ts *TableScanImpl) SetString(field string, val string) error {
-	return ts.rp.SetString(ts.curSlot, field, val)
+	return ts.recordPage.SetString(ts.curSlot, field, val)
 }
 
 func (ts *TableScanImpl) SetVal(field string, val *constant.Const) error {
@@ -113,22 +115,24 @@ func (ts *TableScanImpl) SetVal(field string, val *constant.Const) error {
 	}
 	switch schemaType {
 	case SCHEMA_TYPE_INTEGER:
-		if val.Kind() != constant.KIND_INT {
-			return fmt.Errorf("record: table scan: set val: expected int, got %v", val)
+		val, err := val.AsInt()
+		if err != nil {
+			return fmt.Errorf("record: failed to convert val to int: %w", err)
 		}
-		return ts.SetInt(field, val.AsInt())
+		return ts.SetInt(field, val)
 	case SCHEMA_TYPE_VARCHAR:
-		if val.Kind() != constant.KIND_STR {
-			return fmt.Errorf("record: table scan: set val: expected string, got %v", val)
+		val, err := val.AsString()
+		if err != nil {
+			return fmt.Errorf("record: failed to convert val to string: %w", err)
 		}
-		return ts.SetString(field, val.AsString())
+		return ts.SetString(field, val)
 	}
 	return nil
 }
 
 func (ts *TableScanImpl) Insert() error {
 	var err error
-	ts.curSlot, err = ts.rp.InsertAfter(ts.curSlot)
+	ts.curSlot, err = ts.recordPage.InsertAfter(ts.curSlot)
 	if err != nil {
 		return fmt.Errorf("record: table scan: insert: %w", err)
 	}
@@ -136,12 +140,12 @@ func (ts *TableScanImpl) Insert() error {
 		if ts.atLastBlock() {
 			err = ts.moveToNewBlock()
 		} else {
-			err = ts.moveToBlock(ts.rp.Block().Number() + 1)
+			err = ts.moveToBlock(ts.recordPage.Block().Number() + 1)
 		}
 		if err != nil {
 			return fmt.Errorf("record: table scan: insert: %w", err)
 		}
-		ts.curSlot, err = ts.rp.InsertAfter(ts.curSlot)
+		ts.curSlot, err = ts.recordPage.InsertAfter(ts.curSlot)
 		if err != nil {
 			return fmt.Errorf("record: table scan: insert: %w", err)
 		}
@@ -150,28 +154,28 @@ func (ts *TableScanImpl) Insert() error {
 }
 
 func (ts *TableScanImpl) Delete() error {
-	return ts.rp.Delete(ts.curSlot)
+	return ts.recordPage.Delete(ts.curSlot)
 }
 
 func (ts *TableScanImpl) MoveToRid(rid RID) {
 	ts.Close()
 	blk := file.NewBlockId(ts.filename, rid.BlockNumber())
-	ts.rp, _ = NewRecordPage(ts.tx, blk, ts.layout)
+	ts.recordPage, _ = NewRecordPage(ts.tx, blk, ts.layout)
 	ts.curSlot = rid.Slot()
 }
 
 func (ts *TableScanImpl) GetRid() RID {
-	return NewRID(ts.rp.Block().Number(), ts.curSlot)
+	return NewRID(ts.recordPage.Block().Number(), ts.curSlot)
 }
 
 func (ts *TableScanImpl) moveToBlock(blknum int) (err error) {
 	ts.Close()
 	blk := file.NewBlockId(ts.filename, blknum)
-	ts.rp, err = NewRecordPage(ts.tx, blk, ts.layout)
+	ts.recordPage, err = NewRecordPage(ts.tx, blk, ts.layout)
 	if err != nil {
 		return err
 	}
-	ts.curSlot = -1
+	ts.curSlot = SLOT_INIT
 	return nil
 }
 
@@ -181,18 +185,18 @@ func (ts *TableScanImpl) moveToNewBlock() error {
 	if err != nil {
 		return err
 	}
-	ts.rp, err = NewRecordPage(ts.tx, blk, ts.layout)
+	ts.recordPage, err = NewRecordPage(ts.tx, blk, ts.layout)
 	if err != nil {
 		return err
 	}
-	if err := ts.rp.Format(); err != nil {
+	if err := ts.recordPage.Format(); err != nil {
 		return err
 	}
-	ts.curSlot = -1
+	ts.curSlot = SLOT_INIT
 	return nil
 }
 
 func (ts *TableScanImpl) atLastBlock() bool {
 	size, _ := ts.tx.Size(ts.filename)
-	return ts.rp.Block().Number() == size-1
+	return ts.recordPage.Block().Number() == size-1
 }

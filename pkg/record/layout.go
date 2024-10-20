@@ -6,6 +6,8 @@ import (
 	"github.com/kj455/db/pkg/file"
 )
 
+const int32Bytes = 4
+
 type LayoutImpl struct {
 	schema   Schema
 	offsets  map[string]int
@@ -17,12 +19,12 @@ func NewLayoutFromSchema(schema Schema) (Layout, error) {
 		schema:  schema,
 		offsets: make(map[string]int),
 	}
-	pos := 4 // for int32 slot
+	pos := int32Bytes // for int32 slot
 	for _, field := range schema.Fields() {
 		l.offsets[field] = pos
 		length, err := l.lengthInBytes(field)
 		if err != nil {
-			return nil, fmt.Errorf("record: layout: length in bytes: %w", err)
+			return nil, err
 		}
 		pos += length
 	}
@@ -30,7 +32,7 @@ func NewLayoutFromSchema(schema Schema) (Layout, error) {
 	return l, nil
 }
 
-func NewLayout(schema Schema, offsets map[string]int, slotSize int) Layout {
+func NewLayout(schema Schema, offsets map[string]int, slotSize int) *LayoutImpl {
 	return &LayoutImpl{
 		schema:   schema,
 		offsets:  offsets,
@@ -57,7 +59,7 @@ func (l *LayoutImpl) lengthInBytes(field string) (int, error) {
 	}
 	switch typ {
 	case SCHEMA_TYPE_INTEGER:
-		return 4, nil // for int32
+		return int32Bytes, nil
 	case SCHEMA_TYPE_VARCHAR:
 		len, err := l.schema.Length(field)
 		if err != nil {
@@ -65,5 +67,5 @@ func (l *LayoutImpl) lengthInBytes(field string) (int, error) {
 		}
 		return file.MaxLength(len), nil
 	}
-	return 0, fmt.Errorf("record: layout: length in bytes: unknown type %v", typ)
+	return 0, fmt.Errorf("record: unknown schema type %v", typ)
 }

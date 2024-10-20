@@ -1,7 +1,6 @@
 package record
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/kj455/db/pkg/buffer"
@@ -13,74 +12,71 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var randInts = []int{38, 1, 31, 13, 30, 4, 16, 47, 29, 33}
+func TestRecordPage(t *testing.T) {
+	t.Parallel()
+	const (
+		blockSize       = 400
+		testFileName    = "test_record_page"
+		logTestFileName = "test_record_page_log"
+	)
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	defer cleanup()
+	_, _, logCleanup := testutil.SetupFile(logTestFileName)
+	defer logCleanup()
 
-func TestRecord(t *testing.T) {
-	rootDir := testutil.RootDir()
-	dir := rootDir + "/.tmp"
-	fm := file.NewFileMgr(dir, 400)
-	lm, _ := log.NewLogMgr(fm, "testlogfile")
-	buffs := make([]buffer.Buffer, 2)
-	for i := range buffs {
-		buffs[i] = buffer.NewBuffer(fm, lm, 400)
-	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	fm := file.NewFileMgr(dir, blockSize)
+	lm, err := log.NewLogMgr(fm, logTestFileName)
+	assert.NoError(t, err)
+	buff := buffer.NewBuffer(fm, lm, blockSize)
+	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buff})
 	txNumGen := transaction.NewTxNumberGenerator()
-	tx, _ := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	assert.NoError(t, err)
 
 	sch := NewSchema()
 	sch.AddIntField("A")
-	sch.AddStringField("B", 9)
-	layout, _ := NewLayoutFromSchema(sch)
-	assert.Equal(t, 4, layout.Offset("A"))
-	assert.Equal(t, 8, layout.Offset("B"))
+	sch.AddStringField("B", 4)
 
-	for _, fldname := range layout.Schema().Fields() {
-		offset := layout.Offset(fldname)
-		t.Logf("%s has offset %d\n", fldname, offset)
-	}
+	layout, err := NewLayoutFromSchema(sch)
+	assert.NoError(t, err)
 
-	blk, _ := tx.Append("testfile")
-	tx.Pin(blk)
-	rp, _ := NewRecordPage(tx, blk, layout)
-	rp.Format()
+	block, err := tx.Append(testFileName)
+	assert.NoError(t, err)
+	tx.Pin(block)
+	recPage, err := NewRecordPage(tx, block, layout)
+	assert.NoError(t, err)
 
-	t.Logf("Filling the page with random records.")
-	slot, _ := rp.InsertAfter(-1)
-	for slot >= 0 {
-		n := randInts[slot]
-		rp.SetInt(slot, "A", n)
-		rp.SetString(slot, "B", "rec"+fmt.Sprintf("%d", n))
-		t.Logf("inserting into slot %d: {%d, rec%d}\n", slot, n, n)
-		slot, _ = rp.InsertAfter(slot)
-	}
+	// Insert into Slot 0
+	slot, err := recPage.InsertAfter(SLOT_INIT)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, slot)
+	err = recPage.SetInt(slot, "A", 1)
+	assert.NoError(t, err)
+	err = recPage.SetString(slot, "B", "rec1")
+	assert.NoError(t, err)
 
-	t.Logf("Deleting these records, whose A-values are less than 30.")
-	t.Logf("page has %d slots\n", layout.SlotSize())
-	count := 0
-	slot = rp.NextAfter(-1)
-	for slot >= 0 {
-		a, _ := rp.GetInt(slot, "A")
-		b, _ := rp.GetString(slot, "B")
-		if a < 30 {
-			count++
-			t.Logf("slot %d: {%d, %s}\n", slot, a, b)
-			rp.Delete(slot)
-		}
-		slot = rp.NextAfter(slot)
-	}
-	t.Logf("page has %d slots\n", layout.SlotSize())
+	// Insert into Slot 1
+	slot, err = recPage.InsertAfter(slot)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, slot)
+	err = recPage.SetInt(slot, "A", 2)
+	assert.NoError(t, err)
+	err = recPage.SetString(slot, "B", "rec2")
+	assert.NoError(t, err)
 
-	t.Logf("Here are the remaining records.")
-	slot = rp.NextAfter(-1)
-	for slot >= 0 {
-		a, _ := rp.GetInt(slot, "A")
-		b, _ := rp.GetString(slot, "B")
-		t.Logf("slot %d: {%d, %s}\n", slot, a, b)
-		assert.Equal(t, randInts[slot], a)
-		assert.Equal(t, "rec"+fmt.Sprintf("%d", randInts[slot]), b)
-		slot = rp.NextAfter(slot)
-	}
-	tx.Unpin(blk)
-	tx.Commit()
+	// Delete Slot 0
+	err = recPage.Delete(0)
+	assert.NoError(t, err)
+
+	// Next Slot should be 1
+	slot = recPage.NextAfter(SLOT_INIT)
+	assert.Equal(t, 1, slot)
+
+	// Format the page
+	err = recPage.Format()
+	assert.NoError(t, err)
+
+	// Next Slot should be SLOT_INIT
+	slot = recPage.NextAfter(SLOT_INIT)
+	assert.Equal(t, SLOT_INIT, slot)
 }

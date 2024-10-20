@@ -8,10 +8,14 @@ import (
 
 func TestConstant(t *testing.T) {
 	t.Run("NewConstant", func(t *testing.T) {
-		c, _ := NewConstant(KIND_INT, 42)
-		assert.Equal(t, 42, c.AsInt())
-		c, _ = NewConstant(KIND_STR, "hello")
-		assert.Equal(t, "hello", c.AsString())
+		i1, _ := NewConstant(KIND_INT, 42)
+		v, _ := i1.AsInt()
+		assert.Equal(t, 42, v)
+
+		s1, _ := NewConstant(KIND_STR, "hello")
+		vs, _ := s1.AsString()
+		assert.Equal(t, "hello", vs)
+
 		_, err := NewConstant(KIND_INT, "hello")
 		assert.Error(t, err)
 	})
