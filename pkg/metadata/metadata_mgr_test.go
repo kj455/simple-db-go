@@ -29,7 +29,7 @@ func TestMetadata(t *testing.T) {
 	bm := buffermgr.NewBufferMgr(buffs)
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, _ := transaction.NewTransaction(fm, lm, bm, txNumGen)
-	mdm, _ := NewMetadataMgr(true, tx)
+	mdm, _ := NewMetadataMgr(tx)
 
 	sch := record.NewSchema()
 	sch.AddIntField("A")

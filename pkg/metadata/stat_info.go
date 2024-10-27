@@ -4,18 +4,18 @@ package metadata
 // the number of blocks, the number of records,
 // and the number of distinct values for each field.
 type StatInfoImpl struct {
-	numBlocks int
-	numRecs   int
+	numBlocks  int
+	numRecords int
 }
 
 // NewStatInfo creates a StatInfoImpl object.
 // Note that the number of distinct values is not
 // passed into the constructor.
 // The function fakes this value.
-func NewStatInfo(numblocks, numrecs int) StatInfo {
+func NewStatInfo(numBlocks, numRecords int) StatInfo {
 	return &StatInfoImpl{
-		numBlocks: numblocks,
-		numRecs:   numrecs,
+		numBlocks:  numBlocks,
+		numRecords: numRecords,
 	}
 }
 
@@ -26,7 +26,7 @@ func (si *StatInfoImpl) BlocksAccessed() int {
 
 // RecordsOutput returns the estimated number of records in the table.
 func (si *StatInfoImpl) RecordsOutput() int {
-	return si.numRecs
+	return si.numRecords
 }
 
 // DistinctValues returns the estimated number of distinct values
@@ -34,5 +34,5 @@ func (si *StatInfoImpl) RecordsOutput() int {
 // This estimate is a complete guess, because doing something
 // reasonable is beyond the scope of this system.
 func (si *StatInfoImpl) DistinctValues(fldname string) int {
-	return 1 + (si.numRecs / 3)
+	return 1 + (si.numRecords / 3)
 }

@@ -85,14 +85,14 @@ func (ii *IndexInfoImpl) createIdxLayout() (record.Layout, error) {
 	sch.AddIntField("id")
 	schType, err := ii.tblSchema.Type(ii.fldname)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if schType == record.SCHEMA_TYPE_INTEGER {
 		sch.AddIntField("dataval")
 	} else {
 		fldlen, err := ii.tblSchema.Length(ii.fldname)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		sch.AddStringField("dataval", fldlen)
 	}

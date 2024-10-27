@@ -31,7 +31,7 @@ func TestScan1(t *testing.T) {
 	bm := buffermgr.NewBufferMgr(buffs)
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, _ := transaction.NewTransaction(fm, lm, bm, txNumGen)
-	_, _ = metadata.NewMetadataMgr(true, tx)
+	_, _ = metadata.NewMetadataMgr(tx)
 	tx.Commit()
 	sch1 := record.NewSchema()
 	sch1.AddIntField("A")
@@ -86,7 +86,7 @@ func TestScan2(t *testing.T) {
 	bm := buffermgr.NewBufferMgr(buffs)
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, _ := transaction.NewTransaction(fm, lm, bm, txNumGen)
-	_, _ = metadata.NewMetadataMgr(true, tx)
+	_, _ = metadata.NewMetadataMgr(tx)
 
 	sch1 := record.NewSchema()
 	sch1.AddIntField("A")

@@ -8,6 +8,7 @@ import (
 type TableMgr interface {
 	CreateTable(table string, sch record.Schema, tx tx.Transaction) error
 	GetLayout(table string, tx tx.Transaction) (record.Layout, error)
+	HasTable(tblname string, tx tx.Transaction) (bool, error)
 }
 
 type ViewMgr interface {
