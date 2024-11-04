@@ -35,53 +35,68 @@ func (s *SelectScan) Next() bool {
 	return false
 }
 
-func (s *SelectScan) GetInt(fldname string) (int, error) {
-	return s.scan.GetInt(fldname)
+func (s *SelectScan) GetInt(field string) (int, error) {
+	return s.scan.GetInt(field)
 }
 
-func (s *SelectScan) GetString(fldname string) (string, error) {
-	return s.scan.GetString(fldname)
+func (s *SelectScan) GetString(field string) (string, error) {
+	return s.scan.GetString(field)
 }
 
-func (s *SelectScan) GetVal(fldname string) (*constant.Const, error) {
-	return s.scan.GetVal(fldname)
+func (s *SelectScan) GetVal(field string) (*constant.Const, error) {
+	return s.scan.GetVal(field)
 }
 
-func (s *SelectScan) HasField(fldname string) bool {
-	return s.scan.HasField(fldname)
+func (s *SelectScan) HasField(field string) bool {
+	return s.scan.HasField(field)
 }
 
 func (s *SelectScan) Close() {
 	s.scan.Close()
 }
 
-func (s *SelectScan) SetInt(fldname string, val int) error {
-	us := s.scan.(UpdateScan)
-	return us.SetInt(fldname, val)
+func (s *SelectScan) SetInt(field string, val int) error {
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
+	return us.SetInt(field, val)
 }
 
-func (s *SelectScan) SetString(fldname string, val string) error {
-	us := s.scan.(UpdateScan)
-	return us.SetString(fldname, val)
+func (s *SelectScan) SetString(field string, val string) error {
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
+	return us.SetString(field, val)
 }
 
-func (s *SelectScan) SetVal(fldname string, val *constant.Const) error {
-	us := s.scan.(UpdateScan)
-	return us.SetVal(fldname, val)
+func (s *SelectScan) SetVal(field string, val *constant.Const) error {
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
+	return us.SetVal(field, val)
 }
 
 func (s *SelectScan) Delete() error {
-	us := s.scan.(UpdateScan)
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
 	return us.Delete()
 }
 
 func (s *SelectScan) Insert() error {
-	us := s.scan.(UpdateScan)
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
 	return us.Insert()
 }
 
 func (s *SelectScan) GetRid() (record.RID, error) {
-	us, ok := s.scan.(UpdateScan)
+	us, ok := s.scan.(UpdatableScan)
 	if !ok {
 		return nil, fmt.Errorf("query: scan is not an UpdateScan")
 	}
@@ -89,6 +104,9 @@ func (s *SelectScan) GetRid() (record.RID, error) {
 }
 
 func (s *SelectScan) MoveToRid(rid record.RID) error {
-	us := s.scan.(UpdateScan)
+	us, ok := s.scan.(UpdatableScan)
+	if !ok {
+		return fmt.Errorf("query: scan is not an UpdateScan")
+	}
 	return us.MoveToRID(rid)
 }

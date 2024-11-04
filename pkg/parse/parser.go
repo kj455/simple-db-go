@@ -51,7 +51,7 @@ func (p *Parser) Constant() (*constant.Const, error) {
 }
 
 // Expression parses and returns an expression.
-func (p *Parser) Expression() (*query.ExpressionImpl, error) {
+func (p *Parser) Expression() (query.Expression, error) {
 	if p.lex.MatchId() {
 		f, err := p.Field()
 		if err != nil {

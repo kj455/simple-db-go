@@ -8,8 +8,8 @@ import (
 )
 
 type IndexInfoImpl struct {
-	idxname   string
-	fldname   string
+	idxName   string
+	fldName   string
 	tx        tx.Transaction
 	tblSchema record.Schema
 	idxLayout record.Layout
@@ -17,19 +17,19 @@ type IndexInfoImpl struct {
 }
 
 // NewIndexInfo creates an IndexInfoImpl object for the specified index.
-func NewIndexInfo(idxname, fldname string, tblSchema record.Schema, tx tx.Transaction, si StatInfo) (IndexInfo, error) {
+func NewIndexInfo(idxName, fldName string, tblSchema record.Schema, tx tx.Transaction, si StatInfo) (*IndexInfoImpl, error) {
 	ii := &IndexInfoImpl{
-		idxname:   idxname,
-		fldname:   fldname,
+		idxName:   idxName,
+		fldName:   fldName,
 		tx:        tx,
-		tblSchema: tblSchema,
 		si:        si,
+		tblSchema: tblSchema,
 	}
-	l, err := ii.createIdxLayout()
+	layout, err := ii.createIdxLayout()
 	if err != nil {
-		return nil, fmt.Errorf("index info: %w", err)
+		return nil, err
 	}
-	ii.idxLayout = l
+	ii.idxLayout = layout
 	return ii, nil
 }
 
@@ -41,7 +41,7 @@ func NewIndexInfo(idxname, fldname string, tblSchema record.Schema, tx tx.Transa
 // }
 
 func (ii *IndexInfoImpl) IndexName() string {
-	return ii.idxname
+	return ii.idxName
 }
 
 func (ii *IndexInfoImpl) IdxLayout() record.Layout {
@@ -56,26 +56,27 @@ func (ii *IndexInfoImpl) Si() StatInfo {
 	return ii.si
 }
 
-// TODO:
 // BlocksAccessed estimates the number of block accesses required to find all index records.
-// func (ii *IndexInfoImpl) BlocksAccessed() int {
-// 	rpb := ii.tx.BlockSize() / ii.idxLayout.SlotSize()
-// 	numblocks := ii.si.RecordsOutput() / rpb
-// 	return HashIndexSearchCost(numblocks, rpb)
-// 	// return BTreeIndexSearchCost(numblocks, rpb)
-// }
+// FIXME
+func (ii *IndexInfoImpl) BlocksAccessed() int {
+	rpb := ii.tx.BlockSize() / ii.idxLayout.SlotSize()
+	numblocks := ii.si.RecordsOutput() / rpb
+	return numblocks
+	// return HashIndexSearchCost(numblocks, rpb)
+	// return BTreeIndexSearchCost(numblocks, rpb)
+}
 
 // RecordsOutput returns the estimated number of records having a search key.
 func (ii *IndexInfoImpl) RecordsOutput() int {
-	return ii.si.RecordsOutput() / ii.si.DistinctValues(ii.fldname)
+	return ii.si.RecordsOutput() / ii.si.DistinctValues(ii.fldName)
 }
 
 // DistinctValues returns the distinct values for a specified field or 1 for the indexed field.
 func (ii *IndexInfoImpl) DistinctValues(fname string) int {
-	if ii.fldname == fname {
+	if ii.fldName == fname {
 		return 1
 	}
-	return ii.si.DistinctValues(ii.fldname)
+	return ii.si.DistinctValues(ii.fldName)
 }
 
 // createIdxLayout returns the layout of the index records.
@@ -83,18 +84,25 @@ func (ii *IndexInfoImpl) createIdxLayout() (record.Layout, error) {
 	sch := record.NewSchema()
 	sch.AddIntField("block")
 	sch.AddIntField("id")
-	schType, err := ii.tblSchema.Type(ii.fldname)
+
+	schType, err := ii.tblSchema.Type(ii.fldName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("metadata: failed to get field type: %v", err)
 	}
+
 	if schType == record.SCHEMA_TYPE_INTEGER {
 		sch.AddIntField("dataval")
 	} else {
-		fldlen, err := ii.tblSchema.Length(ii.fldname)
+		fldlen, err := ii.tblSchema.Length(ii.fldName)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("metadata: failed to get field length: %v", err)
 		}
 		sch.AddStringField("dataval", fldlen)
 	}
-	return record.NewLayoutFromSchema(sch)
+
+	layout, err := record.NewLayoutFromSchema(sch)
+	if err != nil {
+		return nil, fmt.Errorf("metadata: failed to create layout: %v", err)
+	}
+	return layout, nil
 }

@@ -31,8 +31,7 @@ func (si *StatInfoImpl) RecordsOutput() int {
 
 // DistinctValues returns the estimated number of distinct values
 // for the specified field.
-// This estimate is a complete guess, because doing something
-// reasonable is beyond the scope of this system.
+// FIXME: This is a fake value.
 func (si *StatInfoImpl) DistinctValues(fldname string) int {
 	return 1 + (si.numRecords / 3)
 }

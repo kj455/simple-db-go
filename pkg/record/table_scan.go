@@ -101,6 +101,7 @@ func (ts *TableScanImpl) Close() {
 }
 
 func (ts *TableScanImpl) SetInt(field string, val int) error {
+	fmt.Println("field:", field, "val:", val, ts.curSlot)
 	return ts.recordPage.SetInt(ts.curSlot, field, val)
 }
 

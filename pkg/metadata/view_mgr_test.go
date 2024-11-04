@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestViewMgr__(t *testing.T) {
+func TestViewMgr(t *testing.T) {
 	const (
 		logFileName = "test_view_mgr_log"
 		blockSize   = 1024

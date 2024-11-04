@@ -1,6 +1,10 @@
 package query
 
-import "github.com/kj455/db/pkg/constant"
+import (
+	"fmt"
+
+	"github.com/kj455/db/pkg/constant"
+)
 
 // ProductScan corresponds to the product relational algebra operator.
 type ProductScan struct {
@@ -41,9 +45,14 @@ func (p *ProductScan) Next() bool {
 
 // GetInt returns the integer value of the specified field. The value is obtained from whichever scan contains the field.
 func (p *ProductScan) GetInt(field string) (int, error) {
+	fmt.Println("field:", field)
 	if p.s1.HasField(field) {
+		v, _ := p.s1.GetInt(field)
+		fmt.Println("get from s1:", v)
 		return p.s1.GetInt(field)
 	}
+	v, _ := p.s2.GetInt(field)
+	fmt.Println("get from s2:", v)
 	return p.s2.GetInt(field)
 }
 

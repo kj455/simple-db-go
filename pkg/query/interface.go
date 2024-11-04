@@ -32,7 +32,7 @@ type Scan interface {
 	Close()
 }
 
-type UpdateScan interface {
+type UpdatableScan interface {
 	Scan
 	SetInt(field string, val int) error
 	SetString(field string, val string) error
@@ -54,7 +54,7 @@ type Expression interface {
 	IsFieldName() bool
 	AsConstant() *constant.Const
 	AsFieldName() string
-	AppliesTo(sch record.Schema) bool
+	CanApply(sch record.Schema) bool
 	ToString() string
 }
 
