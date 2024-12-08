@@ -11,6 +11,7 @@ lint:
 clean:
 	rm -rf .coverage
 	rm -rf ./pkg/**/mock
+	rm -rf .tmp/**
 coverage:
 	mkdir -p .coverage
 	go test -coverprofile=.coverage/coverage.out $(PKG)
