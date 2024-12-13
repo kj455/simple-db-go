@@ -7,16 +7,16 @@ on:
 
 jobs:
   test:
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: ./go.mod
-      - name: Generate mocks
-        run: |
-          go install go.uber.org/mock/mockgen@v0.4.0
-          make mockgen
+      - name: Setup
+        run: make setup
       - name: Test
         run: make test
 

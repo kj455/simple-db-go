@@ -12,6 +12,9 @@ clean:
 	rm -rf .coverage
 	rm -rf ./pkg/**/mock
 	rm -rf .tmp/**
+setup:
+	make import-tools
+	make mockgen
 coverage:
 	mkdir -p .coverage
 	go test -coverprofile=.coverage/coverage.out $(PKG)
@@ -24,3 +27,6 @@ mockgen:
 	done' sh {} +
 fmt:
 	go fmt $(PKG)
+import-tools:
+	go install gotest.tools/gotestsum@v1.12.0
+	go install go.uber.org/mock/mockgen@v0.4.0
