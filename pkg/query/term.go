@@ -29,6 +29,7 @@ func (t *Term) IsSatisfied(s Scan) (bool, error) {
 	return lhsVal.Equals(rhsVal), nil
 }
 
+// ReductionFactor calculates the extent to which selecting on the predicate reduces the number of records output by a query.
 func (t *Term) ReductionFactor(p PlanInfo) int {
 	var lhsName, rhsName string
 	if t.lhs.IsFieldName() && t.rhs.IsFieldName() {
@@ -50,7 +51,7 @@ func (t *Term) ReductionFactor(p PlanInfo) int {
 	return int(^uint(0) >> 1) // Max int value
 }
 
-func (t *Term) EquatesWithConstant(field string) (*constant.Const, bool) {
+func (t *Term) FindConstantEquivalence(field string) (*constant.Const, bool) {
 	if t.lhs.IsFieldName() && t.lhs.AsFieldName() == field && !t.rhs.IsFieldName() {
 		return t.rhs.AsConstant(), true
 	}
@@ -60,7 +61,7 @@ func (t *Term) EquatesWithConstant(field string) (*constant.Const, bool) {
 	return nil, false
 }
 
-func (t *Term) EquatesWithField(field string) (string, bool) {
+func (t *Term) FindFieldEquivalence(field string) (string, bool) {
 	if t.lhs.IsFieldName() && t.lhs.AsFieldName() == field && t.rhs.IsFieldName() {
 		return t.rhs.AsFieldName(), true
 	}
@@ -70,8 +71,8 @@ func (t *Term) EquatesWithField(field string) (string, bool) {
 	return "", false
 }
 
-func (t *Term) AppliesTo(sch record.Schema) bool {
-	return t.lhs.AppliesTo(sch) && t.rhs.AppliesTo(sch)
+func (t *Term) CanApply(sch record.Schema) bool {
+	return t.lhs.CanApply(sch) && t.rhs.CanApply(sch)
 }
 
 func (t *Term) String() string {

@@ -13,7 +13,7 @@ type RollbackRecord struct {
 }
 
 func NewRollbackRecord(p file.Page) *RollbackRecord {
-	tpos := OpSize
+	tpos := OffsetTxNum
 	txNum := p.GetInt(tpos)
 	return &RollbackRecord{
 		txNum: int(txNum),
@@ -21,7 +21,7 @@ func NewRollbackRecord(p file.Page) *RollbackRecord {
 }
 
 func (r *RollbackRecord) Op() Op {
-	return ROLLBACK
+	return OP_ROLLBACK
 }
 
 func (r *RollbackRecord) TxNum() int {
@@ -38,10 +38,10 @@ func (r *RollbackRecord) String() string {
 
 func WriteRollbackRecordToLog(lm log.LogMgr, txNum int) (int, error) {
 	const txNumSize = 4
-	length := OpSize + txNumSize
+	length := OffsetTxNum + txNumSize
 	record := make([]byte, length)
 	p := file.NewPageFromBytes(record)
-	p.SetInt(0, uint32(ROLLBACK))
-	p.SetInt(OpSize, uint32(txNum))
+	p.SetInt(0, uint32(OP_ROLLBACK))
+	p.SetInt(OffsetTxNum, uint32(txNum))
 	return lm.Append(record)
 }

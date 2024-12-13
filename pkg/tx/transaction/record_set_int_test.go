@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/log/mock"
-	tmock "github.com/kj455/db/pkg/tx/mock"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewSetIntRecord(t *testing.T) {
+	t.Parallel()
 	const (
 		txNum    = 1
 		filename = "filename"
@@ -19,19 +18,22 @@ func TestNewSetIntRecord(t *testing.T) {
 		offset   = 3
 		val      = 123
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	page := fmock.NewMockPage(ctrl)
-	page.EXPECT().GetInt(OpSize).Return(uint32(txNum))
-	page.EXPECT().GetString(OpSize + 4).Return(filename)
-	filenameLen := 4 + 4*8
-	page.EXPECT().GetInt(OpSize + 4 + filenameLen).Return(uint32(blockNum))
-	page.EXPECT().GetInt(OpSize + 4 + filenameLen + 4).Return(uint32(offset))
-	page.EXPECT().GetInt(OpSize + 4 + filenameLen + 4 + 4).Return(uint32(val))
+	page := file.NewPageFromBytes([]byte{
+		0, 0, 0, byte(OP_SET_INT),
+		0, 0, 0, txNum, // txNum
+		0, 0, 0, byte(len(filename)), // filename length
+		'f', 'i', 'l', 'e', 'n', 'a', 'm', 'e', // filename
+		'0', '0', '0', '0', '0', '0', '0', '0', // padding
+		'0', '0', '0', '0', '0', '0', '0', '0', // padding
+		'0', '0', '0', '0', '0', '0', '0', '0', // padding
+		0, 0, 0, blockNum, // blockNum
+		0, 0, 0, offset, // offset
+		0, 0, 0, val, // val
+	})
 
 	record := NewSetIntRecord(page)
 
-	assert.Equal(t, SET_INT, record.Op())
+	assert.Equal(t, OP_SET_INT, record.Op())
 	assert.Equal(t, txNum, record.TxNum())
 	assert.Equal(t, filename, record.block.Filename())
 	assert.Equal(t, blockNum, record.block.Number())
@@ -39,68 +41,43 @@ func TestNewSetIntRecord(t *testing.T) {
 	assert.Equal(t, val, record.val)
 }
 
-func TestSetIntRecordOp(t *testing.T) {
-	record := SetIntRecord{}
-	assert.Equal(t, SET_INT, record.Op())
-}
-
-func TestSetIntRecordTxNum(t *testing.T) {
-	const txNum = 1
-	record := SetIntRecord{
-		txNum: txNum,
-	}
-	assert.Equal(t, txNum, record.TxNum())
-}
-
-func TestSetIntRecordUndo(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	const (
-		txNum    = 1
-		filename = "filename"
-		blockNum = 2
-		offset   = 3
-		val      = 123
-	)
-	record := SetIntRecord{
-		txNum:  txNum,
-		offset: offset,
-		val:    val,
-		block:  fmock.NewMockBlockId(ctrl),
-	}
-	tx := tmock.NewMockTransaction(ctrl)
-	tx.EXPECT().Pin(record.block)
-	tx.EXPECT().SetInt(record.block, record.offset, record.val, false)
-	tx.EXPECT().Unpin(record.block)
-
-	record.Undo(tx)
-}
-
 func TestWriteSetIntRecordToLog(t *testing.T) {
+	t.Parallel()
 	const (
-		txNum    = 1
-		filename = "filename"
-		blockNum = 2
-		offset   = 3
-		val      = 123
-		lsn      = 0
+		txNum        = 1
+		filename     = "filename"
+		blockNum     = 2
+		offset       = 3
+		val          = 123
+		testFileName = "test_write_set_int_record_to_log"
+		blockSize    = 400
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	block := file.NewBlockId(filename, blockNum)
-	lm := lmock.NewMockLogMgr(ctrl)
-	lm.EXPECT().Append([]byte{
-		0, 0, 0, 4, // SET_INT
-		0, 0, 0, 1, // txNum
-		0, 0, 0, 8, // filename length
-		102, 105, 108, 101, 110, 97, 109, 101, // filename
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
-		0, 0, 0, 2, // blockNum
-		0, 0, 0, 3, // offset
-		0, 0, 0, 123, // val
-	}).Return(lsn, nil)
-
-	got, err := WriteSetIntRecordToLog(lm, txNum, block, offset, val)
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	lm, err := log.NewLogMgr(fileMgr, testFileName)
 	assert.NoError(t, err)
-	assert.Equal(t, lsn, got)
+	block := file.NewBlockId(filename, blockNum)
+
+	lsn, err := WriteSetIntRecordToLog(lm, txNum, block, offset, val)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, lsn)
+
+	iter, err := lm.Iterator()
+	assert.NoError(t, err)
+	assert.True(t, iter.HasNext())
+
+	record, err := iter.Next()
+	assert.NoError(t, err)
+
+	page := file.NewPageFromBytes(record)
+	setIntRecord := NewSetIntRecord(page)
+
+	assert.Equal(t, OP_SET_INT, setIntRecord.Op())
+	assert.Equal(t, txNum, setIntRecord.TxNum())
+	assert.Equal(t, filename, setIntRecord.block.Filename())
+	assert.Equal(t, blockNum, setIntRecord.block.Number())
+	assert.Equal(t, offset, setIntRecord.offset)
+	assert.Equal(t, val, setIntRecord.val)
 }

@@ -13,7 +13,7 @@ type StartRecord struct {
 }
 
 func NewStartRecord(p file.Page) *StartRecord {
-	tpos := OpSize
+	tpos := OffsetTxNum
 	txNum := p.GetInt(tpos)
 	return &StartRecord{
 		txNum: int(txNum),
@@ -21,7 +21,7 @@ func NewStartRecord(p file.Page) *StartRecord {
 }
 
 func (r *StartRecord) Op() Op {
-	return START
+	return OP_START
 }
 
 func (r *StartRecord) TxNum() int {
@@ -36,11 +36,11 @@ func (r *StartRecord) String() string {
 	return fmt.Sprintf("<START %d>", r.txNum)
 }
 
-func WriteStartRecordToLog(lm log.LogMgr, txNum int) (int, error) {
+func WriteStartRecordToLog(lm log.LogMgr, txNum int) (lsn int, err error) {
 	const txNumSize = 4
-	record := make([]byte, OpSize+txNumSize)
+	record := make([]byte, OffsetTxNum+txNumSize)
 	p := file.NewPageFromBytes(record)
-	p.SetInt(0, uint32(START))
-	p.SetInt(OpSize, uint32(txNum))
+	p.SetInt(OffsetOp, uint32(OP_START))
+	p.SetInt(OffsetTxNum, uint32(txNum))
 	return lm.Append(record)
 }

@@ -8,66 +8,67 @@ import (
 )
 
 func TestNewLogRecord(t *testing.T) {
-	const size = 128
 	t.Parallel()
+	const size = 128
 	tests := []struct {
-		name   string
-		args   []byte
-		expect Op
+		name      string
+		args      []byte
+		expect    Op
+		expectErr bool
 	}{
 		{
 			name: "CHECKPOINT",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(CHECKPOINT))
+				p.SetInt(0, uint32(OP_CHECKPOINT))
 				return p.Contents().Bytes()
 			}(),
-			expect: CHECKPOINT,
+			expect: OP_CHECKPOINT,
 		},
 		{
 			name: "START",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(START))
+				p.SetInt(0, uint32(OP_START))
 				return p.Contents().Bytes()
 			}(),
-			expect: START,
+			expect: OP_START,
 		},
 		{
 			name: "COMMIT",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(COMMIT))
+				p.SetInt(0, uint32(OP_COMMIT))
 				return p.Contents().Bytes()
 			}(),
-			expect: COMMIT,
+			expect: OP_COMMIT,
 		},
 		{
 			name: "ROLLBACK",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(ROLLBACK))
+				p.SetInt(0, uint32(OP_ROLLBACK))
 				return p.Contents().Bytes()
 			}(),
-			expect: ROLLBACK,
+			expect: OP_ROLLBACK,
 		},
 		{
 			name: "SET_INT",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(SET_INT))
+				p.SetInt(0, uint32(OP_SET_INT))
 				return p.Contents().Bytes()
 			}(),
-			expect: SET_INT,
+			expect: OP_SET_INT,
 		},
 		{
 			name: "SET_STRING",
 			args: func() []byte {
 				p := file.NewPage(size)
-				p.SetInt(0, uint32(SET_STRING))
+				p.SetInt(0, uint32(OP_SET_STRING))
 				return p.Contents().Bytes()
 			}(),
-			expect: SET_STRING,
+			expect: OP_SET_STRING,
 		},
 		{
 			name: "default",
@@ -76,16 +77,18 @@ func TestNewLogRecord(t *testing.T) {
 				p.SetInt(0, uint32(100))
 				return p.Contents().Bytes()
 			}(),
+			expectErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewLogRecord(tt.args)
-			if got != nil {
-				assert.Equal(t, tt.expect, got.Op())
+			t.Parallel()
+			got, err := NewLogRecord(tt.args)
+			if tt.expectErr {
+				assert.Error(t, err)
 				return
 			}
-			assert.Nil(t, got)
+			assert.Equal(t, tt.expect, got.Op())
 		})
 	}
 }

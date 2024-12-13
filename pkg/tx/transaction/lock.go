@@ -15,7 +15,7 @@ const (
 
 type LockImpl struct {
 	locks       map[file.BlockId]lockState
-	mu          sync.Mutex
+	mu          *sync.Mutex
 	cond        *sync.Cond
 	maxWaitTime time.Duration
 	time        ttime.Time
@@ -40,8 +40,9 @@ func NewLock(options ...LockOption) *LockImpl {
 		locks:       make(map[file.BlockId]lockState),
 		maxWaitTime: DEFAULT_MAX_WAIT_TIME,
 		time:        ttime.NewTime(),
+		mu:          &sync.Mutex{},
 	}
-	l.cond = sync.NewCond(&l.mu)
+	l.cond = sync.NewCond(l.mu)
 	for _, option := range options {
 		option(l)
 	}

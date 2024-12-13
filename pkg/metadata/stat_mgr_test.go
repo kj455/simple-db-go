@@ -7,15 +7,16 @@ import (
 	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/record"
 	"github.com/kj455/db/pkg/testutil"
 	"github.com/kj455/db/pkg/tx/transaction"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestViewMgr(t *testing.T) {
+func TestStatMgr(t *testing.T) {
 	t.Skip("skipping test")
 	const (
-		logFileName = "test_view_mgr_log"
+		logFileName = "test_stat_mgr_log"
 		blockSize   = 1024
 	)
 	dir, _, cleanup := testutil.SetupFile(logFileName)
@@ -35,24 +36,23 @@ func TestViewMgr(t *testing.T) {
 	tblMgr, err := NewTableMgr(tx)
 	assert.NoError(t, err)
 
-	viewMgr, err := NewViewMgr(tblMgr, tx)
-	assert.NoError(t, err)
-	defer func() {
-		err := tblMgr.DropTable(tableViewCatalog, tx)
-		assert.NoError(t, err)
-	}()
+	statMgr, err := NewStatMgr(tblMgr, tx)
 
-	const (
-		viewName = "test_view"
-		viewDef  = "SELECT A, B FROM test_table"
-	)
-	err = viewMgr.CreateView(viewName, viewDef, tx)
 	assert.NoError(t, err)
+
+	schema := record.NewSchema()
+	schema.AddIntField("A")
+	schema.AddStringField("B", 10)
+	layout, err := record.NewLayoutFromSchema(schema)
+	assert.NoError(t, err)
+
+	const tableName = "test_stat_mgr_table"
+	stat, err := statMgr.GetStatInfo(tableName, layout, tx)
 	defer func() {
-		err := viewMgr.DeleteView(viewName, tx)
+		err := tblMgr.DropTable(tableName, tx)
 		assert.NoError(t, err)
 	}()
-	def, err := viewMgr.GetViewDef(viewName, tx)
 	assert.NoError(t, err)
-	assert.Equal(t, viewDef, def)
+	assert.Equal(t, 0, stat.BlocksAccessed())
+	assert.Equal(t, 0, stat.RecordsOutput())
 }

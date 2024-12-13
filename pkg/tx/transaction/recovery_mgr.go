@@ -10,18 +10,18 @@ import (
 )
 
 type RecoveryMgrImpl struct {
-	lm    log.LogMgr
-	bm    buffermgr.BufferMgr
-	tx    tx.Transaction
-	txNum int
+	logMgr log.LogMgr
+	bufMgr buffermgr.BufferMgr
+	tx     tx.Transaction
+	txNum  int
 }
 
 func NewRecoveryMgr(tx tx.Transaction, txNum int, lm log.LogMgr, bm buffermgr.BufferMgr) (*RecoveryMgrImpl, error) {
 	rm := &RecoveryMgrImpl{
-		lm:    lm,
-		bm:    bm,
-		tx:    tx,
-		txNum: txNum,
+		logMgr: lm,
+		bufMgr: bm,
+		tx:     tx,
+		txNum:  txNum,
 	}
 	_, err := WriteStartRecordToLog(lm, txNum)
 	if err != nil {
@@ -32,15 +32,15 @@ func NewRecoveryMgr(tx tx.Transaction, txNum int, lm log.LogMgr, bm buffermgr.Bu
 
 // Commit writes a commit record to the log and flushes the buffer
 func (rm *RecoveryMgrImpl) Commit() error {
-	err := rm.bm.FlushAll(rm.txNum)
+	err := rm.bufMgr.FlushAll(rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := WriteCommitRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteCommitRecordToLog(rm.logMgr, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write commit record to log: %v", err)
 	}
-	rm.lm.Flush(lsn)
+	rm.logMgr.Flush(lsn)
 	return nil
 }
 
@@ -49,14 +49,14 @@ func (rm *RecoveryMgrImpl) Rollback() error {
 	if err := rm.rollback(); err != nil {
 		return fmt.Errorf("recovery: failed to rollback: %v", err)
 	}
-	if err := rm.bm.FlushAll(rm.txNum); err != nil {
+	if err := rm.bufMgr.FlushAll(rm.txNum); err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := WriteRollbackRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteRollbackRecordToLog(rm.logMgr, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write rollback record to log: %v", err)
 	}
-	err = rm.lm.Flush(lsn)
+	err = rm.logMgr.Flush(lsn)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to flush log: %v", err)
 	}
@@ -68,27 +68,30 @@ func (rm *RecoveryMgrImpl) Recover() error {
 	if err := rm.recover(); err != nil {
 		return fmt.Errorf("recovery: failed to recover: %v", err)
 	}
-	if err := rm.bm.FlushAll(rm.txNum); err != nil {
+	if err := rm.bufMgr.FlushAll(rm.txNum); err != nil {
 		return fmt.Errorf("recovery: failed to flush buffer: %v", err)
 	}
-	lsn, err := WriteCommitRecordToLog(rm.lm, rm.txNum)
+	lsn, err := WriteCommitRecordToLog(rm.logMgr, rm.txNum)
 	if err != nil {
 		return fmt.Errorf("recovery: failed to write commit record to log: %v", err)
 	}
-	rm.lm.Flush(lsn)
+	rm.logMgr.Flush(lsn)
 	return nil
 }
 
-func (rm *RecoveryMgrImpl) SetInt(buff buffer.Buffer, offset int, val int) (int, error) {
-	return WriteSetIntRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
+// SetInt writes old value to log
+func (rm *RecoveryMgrImpl) SetInt(buff buffer.Buffer, offset int, oldVal int) (int, error) {
+	return WriteSetIntRecordToLog(rm.logMgr, rm.txNum, buff.Block(), offset, int(oldVal))
 }
 
-func (rm *RecoveryMgrImpl) SetString(buff buffer.Buffer, offset int, val string) (int, error) {
-	return WriteSetStringRecordToLog(rm.lm, rm.txNum, buff.Block(), offset, val)
+// SetString writes old value to log
+func (rm *RecoveryMgrImpl) SetString(buff buffer.Buffer, offset int, oldVal string) (int, error) {
+	return WriteSetStringRecordToLog(rm.logMgr, rm.txNum, buff.Block(), offset, oldVal)
 }
 
+// rollback iterates through the log records. Each time it finds a log record for that transaction, it calls the record’s undo method. It stops when it encounters the start record for that transaction.
 func (rm *RecoveryMgrImpl) rollback() error {
-	iter, err := rm.lm.Iterator()
+	iter, err := rm.logMgr.Iterator()
 	if err != nil {
 		return err
 	}
@@ -97,11 +100,14 @@ func (rm *RecoveryMgrImpl) rollback() error {
 		if err != nil {
 			return err
 		}
-		rec := NewLogRecord(bytes)
+		rec, err := NewLogRecord(bytes)
+		if err != nil {
+			return err
+		}
 		if rec.TxNum() != rm.txNum {
 			continue
 		}
-		if rec.Op() == START {
+		if rec.Op() == OP_START {
 			return nil
 		}
 		if err := rec.Undo(rm.tx); err != nil {
@@ -111,9 +117,10 @@ func (rm *RecoveryMgrImpl) rollback() error {
 	return nil
 }
 
+// recover reads the log until it hits a quiescent checkpoint record or reaches the end of the log, keeping a list of committed transaction numbers. It undoes uncommitted update records the same as in rollback, the difference being that it handles all uncommitted transactions, not just a specific one.
 func (rm *RecoveryMgrImpl) recover() error {
 	finishedTxs := make(map[int]bool)
-	iter, err := rm.lm.Iterator()
+	iter, err := rm.logMgr.Iterator()
 	if err != nil {
 		return err
 	}
@@ -122,11 +129,14 @@ func (rm *RecoveryMgrImpl) recover() error {
 		if err != nil {
 			return err
 		}
-		rec := NewLogRecord(bytes)
+		rec, err := NewLogRecord(bytes)
+		if err != nil {
+			return err
+		}
 		switch rec.Op() {
-		case CHECKPOINT:
+		case OP_CHECKPOINT:
 			return nil
-		case COMMIT, ROLLBACK:
+		case OP_COMMIT, OP_ROLLBACK:
 			finishedTxs[rec.TxNum()] = true
 			continue
 		default:

@@ -1,289 +1,109 @@
 package transaction
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/kj455/db/pkg/buffer"
+	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
-func TestNewRecoveryMgr(t *testing.T) {
-	const txNum = 1
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.logMgr.EXPECT().Append(gomock.Any()).Return(1, nil)
-
-	rm, err := NewRecoveryMgr(m.tx, txNum, m.logMgr, m.bufferMgr)
-
-	assert.Nil(t, err)
-	assert.NotNil(t, rm)
-	assert.Equal(t, m.logMgr, rm.lm)
-	assert.Equal(t, m.bufferMgr, rm.bm)
-	assert.Equal(t, m.tx, rm.tx)
-	assert.Equal(t, txNum, rm.txNum)
-}
-
-func TestRecoveryMgrImpl_Commit(t *testing.T) {
+func TestRecoveryMgr_Rollback(t *testing.T) {
+	t.Parallel()
 	const (
-		txNum = 1
-		lsn   = 2
+		txNum        = 1
+		blockSize    = 4096
+		testFileName = "test_recovery_mgr_rollback"
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-	m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-	m.logMgr.EXPECT().Flush(lsn)
-	rm := &RecoveryMgrImpl{
-		lm:    m.logMgr,
-		bm:    m.bufferMgr,
-		tx:    m.tx,
-		txNum: txNum,
-	}
+	_, logMgr, buf, _, tx, cleanup := setupRecoveryMgrTest(t, testFileName)
+	defer cleanup()
+	recoveryMgr := tx.recoveryMgr
 
-	err := rm.Commit()
+	recoveryMgr.SetInt(buf, 100, 1)
+	recoveryMgr.SetString(buf, 200, "test")
+	recoveryMgr.Commit()
+	recoveryMgr.SetInt(buf, 100, 2)
+	recoveryMgr.Rollback()
 
-	assert.Nil(t, err)
-}
-
-func newStartRecordBytes(t *testing.T, txNum int) []byte {
-	rec := make([]byte, 8)
-	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(START))
-	p.SetInt(4, uint32(txNum))
-	s := NewStartRecord(file.NewPageFromBytes(rec))
-	str := fmt.Sprintf("<START %d>", txNum)
-	assert.Equal(t, str, s.String())
-	return rec
-}
-
-func newSetIntRecordBytes(t *testing.T, txNum int) []byte {
-	const (
-		filename = "test"
-		blockNum = 0
-		offset   = 0
-		value    = 1
-	)
-	rec := make([]byte, 256)
-	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(SET_INT))
-	p.SetInt(4, uint32(txNum))
-	p.SetString(8, filename)
-	p.SetInt(8+file.MaxLength(len(filename)), uint32(blockNum))
-	p.SetInt(8+file.MaxLength(len(filename))+4, uint32(offset))
-	p.SetInt(8+file.MaxLength(len(filename))+8, uint32(value))
-	si := NewSetIntRecord(file.NewPageFromBytes(rec))
-	str := fmt.Sprintf("<SET_INT %d %s %d %d>", txNum, file.NewBlockId(filename, blockNum), offset, value)
-	assert.Equal(t, str, si.String())
-	return rec
-}
-
-func newCommitRecordBytes(t *testing.T, txNum int) []byte {
-	rec := make([]byte, 8)
-	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(COMMIT))
-	p.SetInt(4, uint32(txNum))
-	c := NewCommitRecord(file.NewPageFromBytes(rec))
-	str := fmt.Sprintf("<COMMIT %d>", txNum)
-	assert.Equal(t, str, c.String())
-	return rec
-}
-
-func newCheckpointRecordBytes(t *testing.T) []byte {
-	rec := make([]byte, 4)
-	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(CHECKPOINT))
-	cp := NewCheckpointRecord()
-	assert.Equal(t, "<CHECKPOINT>", cp.String())
-	return rec
-}
-
-func TestRecoveryMgrImpl_Rollback(t *testing.T) {
-	const (
-		txNum = 1
-		lsn   = 2
-	)
-	tests := []struct {
-		name  string
-		setup func(m *mocks)
-	}{
-		{
-			name: "rollback - stopped by start record",
-			setup: func(m *mocks) {
-				// rollback
-				m.logMgr.EXPECT().Iterator().Return(m.logIter, nil)
-				// 1st iter - setInt
-				m.logIter.EXPECT().HasNext().Return(true)
-				setIntBytes := newSetIntRecordBytes(t, txNum)
-				m.logIter.EXPECT().Next().Return(setIntBytes, nil)
-				m.tx.EXPECT().Pin(gomock.Any())
-				m.tx.EXPECT().SetInt(gomock.Any(), 0, 1, false)
-				m.tx.EXPECT().Unpin(gomock.Any())
-				// 2nd iter - other tx setInt - skip
-				m.logIter.EXPECT().HasNext().Return(true)
-				setIntBytes = newSetIntRecordBytes(t, txNum+1)
-				m.logIter.EXPECT().Next().Return(setIntBytes, nil)
-				// 3rd iter - start
-				m.logIter.EXPECT().HasNext().Return(true)
-				startBytes := newStartRecordBytes(t, txNum)
-				m.logIter.EXPECT().Next().Return(startBytes, nil)
-				// after rollback
-				m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-				m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-				m.logMgr.EXPECT().Flush(lsn).Return(nil)
-			},
-		},
-		{
-			name: "rollback - stopped by no more records",
-			setup: func(m *mocks) {
-				m.logMgr.EXPECT().Iterator().Return(m.logIter, nil)
-				m.logIter.EXPECT().HasNext().Return(false)
-				m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-				m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-				m.logMgr.EXPECT().Flush(lsn).Return(nil)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			tt.setup(m)
-			rm := &RecoveryMgrImpl{
-				lm:    m.logMgr,
-				bm:    m.bufferMgr,
-				tx:    m.tx,
-				txNum: txNum,
-			}
-
-			err := rm.Rollback()
-
-			assert.Nil(t, err)
-		})
-	}
-}
-
-func TestRecoveryMgrImpl_Recover(t *testing.T) {
-	const (
-		txNum = 1
-		lsn   = 2
-	)
-	tests := []struct {
-		name  string
-		setup func(m *mocks)
-	}{
-		{
-			name: "recover - stopped by start record",
-			setup: func(m *mocks) {
-				// recover
-				m.logMgr.EXPECT().Iterator().Return(m.logIter, nil)
-				// uncommitted modification - undo
-				m.logIter.EXPECT().HasNext().Return(true)
-				m.logIter.EXPECT().Next().Return(newSetIntRecordBytes(t, txNum), nil)
-				m.tx.EXPECT().Pin(gomock.Any())
-				m.tx.EXPECT().SetInt(gomock.Any(), gomock.Any(), gomock.Any(), false)
-				m.tx.EXPECT().Unpin(gomock.Any())
-				// commit
-				m.logIter.EXPECT().HasNext().Return(true)
-				commitBytes := newCommitRecordBytes(t, txNum)
-				m.logIter.EXPECT().Next().Return(commitBytes, nil)
-				// setInt
-				m.logIter.EXPECT().HasNext().Return(true)
-				m.logIter.EXPECT().Next().Return(newSetIntRecordBytes(t, txNum), nil)
-				// checkpoint
-				m.logIter.EXPECT().HasNext().Return(true)
-				m.logIter.EXPECT().Next().Return(newCheckpointRecordBytes(t), nil)
-				// after recover
-				m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-				m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-				m.logMgr.EXPECT().Flush(lsn).Return(nil)
-			},
-		},
-		{
-			name: "recover - stopped by no more records",
-			setup: func(m *mocks) {
-				m.logMgr.EXPECT().Iterator().Return(m.logIter, nil)
-				m.logIter.EXPECT().HasNext().Return(false)
-				m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-				m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-				m.logMgr.EXPECT().Flush(lsn).Return(nil)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			tt.setup(m)
-			rm := &RecoveryMgrImpl{
-				lm:    m.logMgr,
-				bm:    m.bufferMgr,
-				tx:    m.tx,
-				txNum: txNum,
-			}
-
-			err := rm.Recover()
-
-			assert.Nil(t, err)
-		})
-	}
-}
-
-func TestRecoveryMgrImpl_SetInt(t *testing.T) {
-	const (
-		txNum  = 1
-		lsn    = 2
-		offset = 0
-		val    = 99
-	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.buffer.EXPECT().Block().Return(m.block)
-	m.block.EXPECT().Filename().Return("test").AnyTimes()
-	m.block.EXPECT().Number().Return(0)
-	m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-	rm := &RecoveryMgrImpl{
-		lm:    m.logMgr,
-		bm:    m.bufferMgr,
-		tx:    m.tx,
-		txNum: txNum,
-	}
-
-	got, err := rm.SetInt(m.buffer, offset, val)
-
-	assert.Equal(t, lsn, got)
+	iter, err := logMgr.Iterator()
 	assert.NoError(t, err)
+	recs := newLogRecordsFromIter(iter)
+
+	assert.Equal(t, OP_ROLLBACK, recs[0].Op())
+	assert.Equal(t, OP_SET_INT, recs[1].Op())
+	assert.Equal(t, OP_COMMIT, recs[2].Op())
+	assert.Equal(t, OP_SET_STRING, recs[3].Op())
+	assert.Equal(t, OP_SET_INT, recs[4].Op())
+	assert.Equal(t, OP_START, recs[5].Op())
+
+	assert.Equal(t, uint32(1), buf.Contents().GetInt(100))
+	assert.Equal(t, "test", buf.Contents().GetString(200))
 }
 
-func TestRecoveryMgrImpl_SetString(t *testing.T) {
+func TestRecoveryMgr_Recover(t *testing.T) {
+	t.Parallel()
 	const (
-		txNum  = 1
-		lsn    = 2
-		offset = 0
-		val    = "test"
+		txNum        = 1
+		blockSize    = 4096
+		testFileName = "test_recovery_mgr_recover"
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.buffer.EXPECT().Block().Return(m.block)
-	m.block.EXPECT().Filename().Return("test").AnyTimes()
-	m.block.EXPECT().Number().Return(0)
-	m.logMgr.EXPECT().Append(gomock.Any()).Return(lsn, nil)
-	rm := &RecoveryMgrImpl{
-		lm:    m.logMgr,
-		bm:    m.bufferMgr,
-		tx:    m.tx,
-		txNum: txNum,
-	}
+	_, logMgr, buf, _, tx, cleanup := setupRecoveryMgrTest(t, testFileName)
+	defer cleanup()
+	recoveryMgr := tx.recoveryMgr
 
-	got, err := rm.SetString(m.buffer, offset, val)
-
-	assert.Equal(t, lsn, got)
+	recoveryMgr.SetInt(buf, 100, 1)
+	recoveryMgr.SetString(buf, 200, "test")
+	recoveryMgr.Commit()
+	_, err := WriteCheckpointRecordToLog(logMgr)
 	assert.NoError(t, err)
+	recoveryMgr.SetInt(buf, 100, 2)
+	recoveryMgr.Recover()
+
+	iter, err := logMgr.Iterator()
+	assert.NoError(t, err)
+	recs := newLogRecordsFromIter(iter)
+
+	assert.Equal(t, OP_COMMIT, recs[0].Op())
+	assert.Equal(t, OP_SET_INT, recs[1].Op())
+	assert.Equal(t, OP_CHECKPOINT, recs[2].Op())
+	assert.Equal(t, OP_COMMIT, recs[3].Op())
+	assert.Equal(t, OP_SET_STRING, recs[4].Op())
+	assert.Equal(t, OP_SET_INT, recs[5].Op())
+
+	assert.Equal(t, uint32(2), buf.Contents().GetInt(100))
+	assert.Equal(t, "", buf.Contents().GetString(200))
+}
+
+func setupRecoveryMgrTest(t *testing.T, testFileName string) (file.FileMgr, log.LogMgr, buffer.Buffer, buffermgr.BufferMgr, *TransactionImpl, func()) {
+	const blockSize = 4096
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, testFileName)
+	assert.NoError(t, err)
+	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	bufferMgr.Pin(file.NewBlockId(testFileName, 0))
+	txNumGen := NewTxNumberGenerator()
+	tx, err := NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
+	assert.NoError(t, err)
+	return fileMgr, logMgr, buf, bufferMgr, tx, cleanup
+}
+
+func newLogRecordsFromIter(iter log.LogIterator) []LogRecord {
+	var recs []LogRecord
+	for iter.HasNext() {
+		bytes, err := iter.Next()
+		if err != nil {
+			break
+		}
+		rec, err := NewLogRecord(bytes)
+		if err != nil {
+			break
+		}
+		recs = append(recs, rec)
+	}
+	return recs
 }

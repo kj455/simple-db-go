@@ -8,6 +8,13 @@ import (
 	"github.com/kj455/db/pkg/tx"
 )
 
+/*
+------------------------------------------------
+|   0  |   4   |  8   | n 	  | n+4    | n+8   |
+------------------------------------------------
+|  op  | txNum | file | block | offset | value |
+------------------------------------------------
+*/
 type SetIntRecord struct {
 	txNum  int
 	offset int
@@ -16,16 +23,17 @@ type SetIntRecord struct {
 }
 
 func NewSetIntRecord(p file.Page) *SetIntRecord {
-	tpos := OpSize
+	const byteSize = 4
+	tpos := OffsetTxNum
 	txnum := p.GetInt(tpos)
-	fnPos := tpos + 4
+	fnPos := tpos + byteSize
 	filename := p.GetString(fnPos)
 	bnPos := fnPos + file.MaxLength(len(filename))
 	blockNum := p.GetInt(bnPos)
 	block := file.NewBlockId(filename, int(blockNum))
-	offPos := bnPos + 4
+	offPos := bnPos + byteSize
 	offset := p.GetInt(offPos)
-	valPos := offPos + 4
+	valPos := offPos + byteSize
 	val := p.GetInt(valPos)
 	return &SetIntRecord{
 		txNum:  int(txnum),
@@ -36,7 +44,7 @@ func NewSetIntRecord(p file.Page) *SetIntRecord {
 }
 
 func (r *SetIntRecord) Op() Op {
-	return SET_INT
+	return OP_SET_INT
 }
 
 func (r *SetIntRecord) TxNum() int {
@@ -66,7 +74,7 @@ func WriteSetIntRecordToLog(lm log.LogMgr, txNum int, block file.BlockId, offset
 	valPos := offPos + 4
 	rec := make([]byte, valPos+4)
 	p := file.NewPageFromBytes(rec)
-	p.SetInt(0, uint32(SET_INT))
+	p.SetInt(0, uint32(OP_SET_INT))
 	p.SetInt(tpos, uint32(txNum))
 	p.SetString(fnPos, block.Filename())
 	p.SetInt(bnPos, uint32(block.Number()))

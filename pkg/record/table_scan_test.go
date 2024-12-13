@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kj455/db/pkg/buffer"
@@ -9,57 +10,70 @@ import (
 	"github.com/kj455/db/pkg/log"
 	"github.com/kj455/db/pkg/testutil"
 	"github.com/kj455/db/pkg/tx/transaction"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTableScan(t *testing.T) {
-	const blockSize = 400
-	rootDir := testutil.ProjectRootDir()
-	dir := rootDir + "/.tmp"
+	t.Parallel()
+	const (
+		blockSize       = 800
+		testFileName    = "test_table_scan"
+		logTestFileName = "test_table_scan_log"
+	)
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	defer cleanup()
+	_, _, logCleanup := testutil.SetupFile(logTestFileName)
+	defer logCleanup()
+
 	fm := file.NewFileMgr(dir, blockSize)
-	lm, _ := log.NewLogMgr(fm, "testlogfile")
-	buffs := make([]buffer.Buffer, 2)
-	for i := range buffs {
-		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
-	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	lm, err := log.NewLogMgr(fm, logTestFileName)
+	assert.NoError(t, err)
+	buff := buffer.NewBuffer(fm, lm, blockSize)
+	buff2 := buffer.NewBuffer(fm, lm, blockSize)
+	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buff, buff2})
 	txNumGen := transaction.NewTxNumberGenerator()
-	tx, _ := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	assert.NoError(t, err)
 
 	sch := NewSchema()
 	sch.AddIntField("A")
-	sch.AddStringField("B", 9)
-	layout, _ := NewLayoutFromSchema(sch)
+	sch.AddStringField("B", 4)
 
-	for _, fldname := range layout.Schema().Fields() {
-		offset := layout.Offset(fldname)
-		t.Logf("%s has offset %d\n", fldname, offset)
+	layout, err := NewLayoutFromSchema(sch)
+	assert.NoError(t, err)
+
+	block, err := tx.Append(testFileName)
+	assert.NoError(t, err)
+	tx.Pin(block)
+	_, err = NewRecordPage(tx, block, layout)
+	assert.NoError(t, err)
+
+	scan, err := NewTableScan(tx, testFileName, layout)
+	assert.NoError(t, err)
+	scan.BeforeFirst()
+
+	// Insert 10 records
+	for i := 0; i < 10; i++ {
+		err = scan.Insert()
+		assert.NoError(t, err)
+		err = scan.SetInt("A", i)
+		assert.NoError(t, err)
+		err = scan.SetString("B", fmt.Sprintf("rec%d", i))
+		assert.NoError(t, err)
 	}
 
-	t.Logf("table has %d slots\n", layout.SlotSize())
-	scan, _ := NewTableScan(tx, "T", layout)
-
+	// Scan the records
+	rid := NewRID(0, -1)
+	scan.MoveToRid(rid)
 	count := 0
-	scan.BeforeFirst()
 	for scan.Next() {
-		a, _ := scan.GetInt("A")
-		b, _ := scan.GetString("B")
-		if a < 25 {
-			count++
-			t.Logf("slot %s: {%d, %s}\n", scan.GetRid(), a, b)
-			scan.Delete()
-		}
+		a, err := scan.GetInt("A")
+		assert.NoError(t, err)
+		b, err := scan.GetString("B")
+		assert.NoError(t, err)
+		assert.Equal(t, count, a)
+		assert.Equal(t, fmt.Sprintf("rec%d", count), b)
+		count++
 	}
-	t.Logf("table has %d slots\n", layout.SlotSize())
-
-	t.Logf("Here are the remaining records.")
-	scan.BeforeFirst()
-	for scan.Next() {
-		a, _ := scan.GetInt("A")
-		b, _ := scan.GetString("B")
-		t.Logf("slot %s: {%d, %s}\n", scan.GetRid(), a, b)
-	}
-	scan.Close()
-	tx.Commit()
-
-	// t.Error()
+	assert.Equal(t, 10, count)
 }

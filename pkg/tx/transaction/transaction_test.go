@@ -6,99 +6,40 @@ import (
 	"time"
 
 	"github.com/kj455/db/pkg/buffer"
-	bmock "github.com/kj455/db/pkg/buffer/mock"
 	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
-	bmmock "github.com/kj455/db/pkg/buffer_mgr/mock"
 	"github.com/kj455/db/pkg/file"
-	fmock "github.com/kj455/db/pkg/file/mock"
 	"github.com/kj455/db/pkg/log"
-	lmock "github.com/kj455/db/pkg/log/mock"
 	"github.com/kj455/db/pkg/testutil"
-	tmock "github.com/kj455/db/pkg/time/mock"
 	"github.com/kj455/db/pkg/tx"
-	txmock "github.com/kj455/db/pkg/tx/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
-type mocks struct {
-	page        *fmock.MockPage
-	block       *fmock.MockBlockId
-	block2      *fmock.MockBlockId
-	block3      *fmock.MockBlockId
-	fileMgr     *fmock.MockFileMgr
-	logMgr      *lmock.MockLogMgr
-	logIter     *lmock.MockLogIterator
-	buffer      *bmock.MockBuffer
-	bufferMgr   *bmmock.MockBufferMgr
-	tx          *txmock.MockTransaction
-	lock        *txmock.MockLock
-	txNumGen    *txmock.MockTxNumberGenerator
-	recoveryMgr *txmock.MockRecoveryMgr
-	concurMgr   *txmock.MockConcurrencyMgr
-	buffList    *txmock.MockBufferList
-	time        *tmock.MockTime
-}
-
-func newMocks(ctrl *gomock.Controller) *mocks {
-	return &mocks{
-		page:        fmock.NewMockPage(ctrl),
-		block:       fmock.NewMockBlockId(ctrl),
-		block2:      fmock.NewMockBlockId(ctrl),
-		block3:      fmock.NewMockBlockId(ctrl),
-		fileMgr:     fmock.NewMockFileMgr(ctrl),
-		logMgr:      lmock.NewMockLogMgr(ctrl),
-		logIter:     lmock.NewMockLogIterator(ctrl),
-		buffer:      bmock.NewMockBuffer(ctrl),
-		bufferMgr:   bmmock.NewMockBufferMgr(ctrl),
-		tx:          txmock.NewMockTransaction(ctrl),
-		lock:        txmock.NewMockLock(ctrl),
-		txNumGen:    txmock.NewMockTxNumberGenerator(ctrl),
-		recoveryMgr: txmock.NewMockRecoveryMgr(ctrl),
-		concurMgr:   txmock.NewMockConcurrencyMgr(ctrl),
-		buffList:    txmock.NewMockBufferList(ctrl),
-		time:        tmock.NewMockTime(ctrl),
-	}
-}
-
-const txNum = 1
-
-func newMockTransaction(m *mocks) *TransactionImpl {
-	return &TransactionImpl{
-		recoveryMgr: m.recoveryMgr,
-		concurMgr:   m.concurMgr,
-		buffs:       m.buffList,
-		bm:          m.bufferMgr,
-		fm:          m.fileMgr,
-		txNum:       txNum,
-	}
-}
-
-func TestTransaction_Integration(t *testing.T) {
+func TestTransaction(t *testing.T) {
 	t.Parallel()
 	const (
-		filename    = "testfile"
-		logFilename = "testlogfile"
+		filename    = "test_transaction"
+		logFilename = "test_transaction_log"
 		blockSize   = 400
 	)
-	rootDir := testutil.ProjectRootDir()
-	dir := rootDir + "/.tmp"
-	fm := file.NewFileMgr(dir, blockSize)
-	lm, err := log.NewLogMgr(fm, logFilename)
-	require.NoError(t, err)
-
+	dir, _, cleanup := testutil.SetupFile(filename)
+	defer cleanup()
+	_, _, cleanupLog := testutil.SetupFile(logFilename)
+	defer cleanupLog()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFilename)
 	assert.NoError(t, err)
 	const buffNum = 2
 	buffs := make([]buffer.Buffer, buffNum)
 	for i := 0; i < buffNum; i++ {
-		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
+		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
 	bm := buffermgr.NewBufferMgr(buffs)
 	txNumGen := NewTxNumberGenerator()
 
-	tx1, err := NewTransaction(fm, lm, bm, txNumGen)
+	// TX1
+	tx1, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)
+	assert.Equal(t, buffNum, tx1.AvailableBuffs())
 
 	block := file.NewBlockId(filename, 0)
 	tx1.Pin(block)
@@ -106,18 +47,22 @@ func TestTransaction_Integration(t *testing.T) {
 	tx1.SetString(block, 40, "one", false)
 	tx1.Commit()
 
-	tx2, err := NewTransaction(fm, lm, bm, txNumGen)
+	// TX2
+	tx2, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)
 	tx2.Pin(block)
+
 	intVal, err := tx2.GetInt(block, 80)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, intVal)
+
 	strVal, err := tx2.GetString(block, 40)
 	assert.NoError(t, err)
 	assert.Equal(t, "one", strVal)
 	tx2.Commit()
 
-	tx3, err := NewTransaction(fm, lm, bm, txNumGen)
+	// TX3
+	tx3, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)
 	tx3.Pin(block)
 	tx3.SetInt(block, 80, 9999, true)
@@ -126,7 +71,8 @@ func TestTransaction_Integration(t *testing.T) {
 	assert.Equal(t, 9999, intVal)
 	tx3.Rollback()
 
-	tx4, err := NewTransaction(fm, lm, bm, txNumGen)
+	// TX4
+	tx4, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)
 	tx4.Pin(block)
 	intVal, err = tx4.GetInt(block, 4)
@@ -136,71 +82,88 @@ func TestTransaction_Integration(t *testing.T) {
 }
 
 func TestTransaction_Concurrency(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
-	dir := rootDir + "/.tmp"
-	fm := file.NewFileMgr(dir, 400)
-	lm, _ := log.NewLogMgr(fm, "testlogfile")
+	t.Parallel()
+	const (
+		blockSize       = 400
+		testFileName    = "test_transaction_concurrency"
+		testLogFileName = "test_transaction_concurrency_log"
+	)
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	defer cleanup()
+	_, _, cleanupLog := testutil.SetupFile(testLogFileName)
+	defer cleanupLog()
+	fm := file.NewFileMgr(dir, blockSize)
+	lm, _ := log.NewLogMgr(fm, testFileName)
 	buffs := make([]buffer.Buffer, 2)
 	for i := 0; i < 2; i++ {
-		buffs[i] = buffer.NewBuffer(fm, lm, 400)
+		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
 	}
 	bm := buffermgr.NewBufferMgr(buffs)
 	txNumGen := NewTxNumberGenerator()
+	blk1 := file.NewBlockId(testFileName, 1)
+	blk2 := file.NewBlockId(testFileName, 2)
 
 	wg := &sync.WaitGroup{}
 	var A, B, C func(*testing.T, file.FileMgr, log.LogMgr, buffermgr.BufferMgr, tx.TxNumberGenerator)
+	wg.Add(3)
 	A = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, tng tx.TxNumberGenerator) {
-		wg.Add(1)
-		blk1 := file.NewBlockId("testfile", 1)
-		blk2 := file.NewBlockId("testfile", 2)
 		txA, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txA.Pin(blk1)
 		txA.Pin(blk2)
+
 		t.Log("Tx A: request slock 1")
 		txA.GetInt(blk1, 0)
+
 		t.Log("Tx A: receive slock 1")
 		time.Sleep(1 * time.Second)
+
 		t.Log("Tx A: request slock 2")
 		txA.GetInt(blk2, 0)
+
 		t.Log("Tx A: receive slock 2")
 		txA.Commit()
+
 		t.Log("Tx A: commit")
 		wg.Done()
 	}
 	B = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, txNumGen tx.TxNumberGenerator) {
-		wg.Add(1)
-		blk1 := file.NewBlockId("testfile", 1)
-		blk2 := file.NewBlockId("testfile", 2)
 		txB, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txB.Pin(blk1)
 		txB.Pin(blk2)
+
 		t.Log("Tx B: request xlock 2")
-		txB.SetInt(blk2, 0, 0, false)
+		txB.SetInt(blk2, 0, 200, false)
+
 		t.Log("Tx B: receive xlock 2")
 		time.Sleep(1 * time.Second)
+
 		t.Log("Tx B: request slock 1")
 		txB.GetInt(blk1, 0)
+
 		t.Log("Tx B: receive slock 1")
 		txB.Commit()
+
 		t.Log("Tx B: commit")
 		wg.Done()
 	}
 	C = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, txNumGen tx.TxNumberGenerator) {
-		wg.Add(1)
-		blk1 := file.NewBlockId("testfile", 1)
-		blk2 := file.NewBlockId("testfile", 2)
 		txC, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txC.Pin(blk1)
 		txC.Pin(blk2)
 		time.Sleep(500 * time.Millisecond)
+
 		t.Log("Tx C: request xlock 1")
-		txC.SetInt(blk1, 0, 0, false)
+		txC.SetInt(blk1, 0, 100, false)
+
 		t.Log("Tx C: receive xlock 1")
 		time.Sleep(1 * time.Second)
+
 		t.Log("Tx C: request slock 2")
 		txC.GetInt(blk2, 0)
+
 		t.Log("Tx C: receive slock 2")
 		txC.Commit()
+
 		t.Log("Tx C: commit")
 		wg.Done()
 	}
@@ -210,279 +173,73 @@ func TestTransaction_Concurrency(t *testing.T) {
 	go C(t, fm, lm, bm, txNumGen)
 
 	wg.Wait()
-}
 
-func TestTransaction_NewTransaction(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.txNumGen.EXPECT().Next().Return(1)
-	m.logMgr.EXPECT().Append(gomock.Any()).Return(1, nil)
-
-	tx, err := NewTransaction(m.fileMgr, m.logMgr, m.bufferMgr, m.txNumGen)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, tx)
-	assert.Equal(t, 1, tx.txNum)
-}
-
-func TestTransaction_Commit(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.recoveryMgr.EXPECT().Commit().Return(nil)
-	m.concurMgr.EXPECT().Release()
-	m.buffList.EXPECT().UnpinAll()
-	tx := newMockTransaction(m)
-
-	err := tx.Commit()
-
-	assert.NoError(t, err)
-}
-
-func TestTransaction_Rollback(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.recoveryMgr.EXPECT().Rollback().Return(nil)
-	m.concurMgr.EXPECT().Release()
-	m.buffList.EXPECT().UnpinAll()
-	tx := newMockTransaction(m)
-
-	err := tx.Rollback()
-
-	assert.NoError(t, err)
-}
-
-func TestTransaction_Recover(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.bufferMgr.EXPECT().FlushAll(txNum).Return(nil)
-	m.recoveryMgr.EXPECT().Recover().Return(nil)
-	tx := newMockTransaction(m)
-
-	err := tx.Recover()
-
-	assert.NoError(t, err)
-}
-
-func TestTransaction_Pin(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.buffList.EXPECT().Pin(m.block)
-	tx := newMockTransaction(m)
-
-	tx.Pin(m.block)
-}
-
-func TestTransaction_Unpin(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.buffList.EXPECT().Unpin(m.block)
-	tx := newMockTransaction(m)
-
-	tx.Unpin(m.block)
-}
-
-func TestTransaction_GetInt(t *testing.T) {
-	t.Parallel()
-	const (
-		offset = 0
-		intVal = 1
-	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.concurMgr.EXPECT().SLock(m.block).Return(nil)
-	m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-	m.buffer.EXPECT().Contents().Return(m.page)
-	m.page.EXPECT().GetInt(offset).Return(uint32(intVal))
-	tx := newMockTransaction(m)
-
-	got, err := tx.GetInt(m.block, offset)
-
-	assert.NoError(t, err)
-	assert.Equal(t, intVal, got)
-}
-
-func TestTransaction_GetString(t *testing.T) {
-	t.Parallel()
-	const (
-		offset = 0
-		strVal = "str"
-	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.concurMgr.EXPECT().SLock(m.block).Return(nil)
-	m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-	m.buffer.EXPECT().Contents().Return(m.page)
-	m.page.EXPECT().GetString(offset).Return(strVal)
-	tx := newMockTransaction(m)
-
-	got, err := tx.GetString(m.block, offset)
-
-	assert.NoError(t, err)
-	assert.Equal(t, strVal, got)
-}
-
-func TestTransaction_SetInt(t *testing.T) {
-	t.Parallel()
-	const (
-		offset = 0
-		intVal = 1
-		lsn    = 2
-	)
-	tests := []struct {
-		name    string
-		okToLog bool
-		setup   func(*mocks)
-	}{
-		{
-			name:    "okToLog",
-			okToLog: true,
-			setup: func(m *mocks) {
-				m.concurMgr.EXPECT().XLock(m.block).Return(nil)
-				m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-				m.recoveryMgr.EXPECT().SetInt(m.buffer, offset, intVal).Return(lsn, nil)
-				m.buffer.EXPECT().WriteContents(txNum, lsn, gomock.Any())
-			},
-		},
-		{
-			name:    "not okToLog",
-			okToLog: false,
-			setup: func(m *mocks) {
-				m.concurMgr.EXPECT().XLock(m.block).Return(nil)
-				m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-				m.buffer.EXPECT().WriteContents(txNum, -1, gomock.Any())
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			tx := newMockTransaction(m)
-			tt.setup(m)
-
-			tx.SetInt(m.block, offset, intVal, tt.okToLog)
-
-			assert.NoError(t, nil)
-		})
-	}
-}
-
-func TestTransaction_SetString(t *testing.T) {
-	t.Parallel()
-	const (
-		offset = 0
-		strVal = "str"
-		lsn    = 1
-	)
-	tests := []struct {
-		name    string
-		okToLog bool
-		setup   func(*mocks)
-	}{
-		{
-			name:    "okToLog",
-			okToLog: true,
-			setup: func(m *mocks) {
-				m.concurMgr.EXPECT().XLock(m.block)
-				m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-				m.recoveryMgr.EXPECT().SetString(m.buffer, offset, strVal).Return(lsn, nil)
-				m.buffer.EXPECT().WriteContents(txNum, lsn, gomock.Any())
-			},
-		},
-		{
-			name:    "not okToLog",
-			okToLog: false,
-			setup: func(m *mocks) {
-				m.concurMgr.EXPECT().XLock(m.block)
-				m.buffList.EXPECT().GetBuffer(m.block).Return(m.buffer, true)
-				m.buffer.EXPECT().WriteContents(txNum, -1, gomock.Any())
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			tx := newMockTransaction(m)
-			tt.setup(m)
-
-			tx.SetString(m.block, offset, strVal, tt.okToLog)
-
-			assert.NoError(t, nil)
-		})
-	}
+	buffs[0].AssignToBlock(blk1)
+	buffs[1].AssignToBlock(blk2)
+	assert.Equal(t, uint32(100), buffs[0].Contents().GetInt(0))
+	assert.Equal(t, uint32(200), buffs[1].Contents().GetInt(0))
 }
 
 func TestTransaction_Size(t *testing.T) {
 	t.Parallel()
-	const filename = "file"
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.concurMgr.EXPECT().SLock(gomock.Any()).Return(nil)
-	m.fileMgr.EXPECT().Length(filename).Return(1, nil)
-	tx := newMockTransaction(m)
+	const (
+		blockSize   = 400
+		fileName    = "test_transaction_size"
+		logFileName = "test_transaction_size_log"
+	)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	_, _, cleanupLog := testutil.SetupFile(logFileName)
+	defer cleanupLog()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+	assert.NoError(t, err)
+	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	txNumGen := NewTxNumberGenerator()
+	tx, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
+	assert.NoError(t, err)
 
-	got, err := tx.Size(filename)
+	size, err := tx.Size(fileName)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 1, got)
+	assert.Equal(t, 0, size)
+
+	block := file.NewBlockId(fileName, 0)
+	buf.AssignToBlock(block)
+	buf.WriteContents(1, 1, func(p buffer.ReadWritePage) {
+		p.SetInt(0, 0)
+	})
+	bm.FlushAll(1)
+
+	size, err = tx.Size(fileName)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, size)
 }
 
 func TestTransaction_Append(t *testing.T) {
 	t.Parallel()
-	const filename = "file"
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.concurMgr.EXPECT().XLock(gomock.Any()).Return(nil)
-	m.fileMgr.EXPECT().Append(filename).Return(m.block, nil)
-	tx := newMockTransaction(m)
+	const (
+		blockSize   = 400
+		fileName    = "test_transaction_append"
+		logFileName = "test_transaction_append_log"
+	)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	_, _, cleanupLog := testutil.SetupFile(logFileName)
+	defer cleanupLog()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+	assert.NoError(t, err)
+	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	txNumGen := NewTxNumberGenerator()
+	tx, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
+	assert.NoError(t, err)
 
-	got, err := tx.Append(filename)
+	block, err := tx.Append(fileName)
 
 	assert.NoError(t, err)
-	assert.Equal(t, m.block, got)
-}
-
-func TestTransaction_BlockSize(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.fileMgr.EXPECT().BlockSize().Return(0)
-	tx := newMockTransaction(m)
-
-	got := tx.BlockSize()
-
-	assert.Equal(t, 0, got)
-}
-
-func TestTransactionImpl_AvailableBuffs(t *testing.T) {
-	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := newMocks(ctrl)
-	m.bufferMgr.EXPECT().AvailableNum().Return(0)
-	tx := newMockTransaction(m)
-
-	got := tx.AvailableBuffs()
-
-	assert.Equal(t, 0, got)
+	assert.True(t, block.Equals(file.NewBlockId(fileName, 0)))
 }

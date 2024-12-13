@@ -3,49 +3,50 @@ package transaction
 import (
 	"testing"
 
-	lmock "github.com/kj455/db/pkg/log/mock"
+	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewCheckpointRecord(t *testing.T) {
+	t.Parallel()
 	record := NewCheckpointRecord()
-	assert.NotNil(t, record)
-}
 
-func TestCheckpointRecordOp(t *testing.T) {
-	record := CheckpointRecord{}
-	assert.Equal(t, CHECKPOINT, record.Op())
-}
-
-func TestCheckpointRecordTxNum(t *testing.T) {
-	record := CheckpointRecord{}
+	assert.Equal(t, OP_CHECKPOINT, record.Op())
 	assert.Equal(t, dummyTxNum, record.TxNum())
-}
-
-func TestCheckpointRecordUndo(t *testing.T) {
-	record := CheckpointRecord{}
-	record.Undo(nil)
-}
-
-func TestCheckpointRecordString(t *testing.T) {
-	record := CheckpointRecord{}
+	assert.NoError(t, record.Undo(nil))
 	assert.Equal(t, "<CHECKPOINT>", record.String())
 }
 
 func TestWriteCheckpointRecordToLog(t *testing.T) {
+	t.Parallel()
 	const (
-		txNum = 1
-		lsn   = 2
+		txNum     = 1
+		blockSize = 400
+		fileName  = "test_write_checkpoint_record_to_log"
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	lm := lmock.NewMockLogMgr(ctrl)
-	lm.EXPECT().Append([]byte{
-		0, 0, 0, 0, // CHECKPOINT
-	}).Return(lsn, nil)
-
-	got, err := WriteCheckpointRecordToLog(lm)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	lm, err := log.NewLogMgr(fileMgr, fileName)
 	assert.NoError(t, err)
-	assert.Equal(t, lsn, got)
+
+	lsn, err := WriteCheckpointRecordToLog(lm)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, lsn)
+
+	iter, err := lm.Iterator()
+
+	assert.NoError(t, err)
+	assert.True(t, iter.HasNext())
+
+	record, err := iter.Next()
+
+	assert.NoError(t, err)
+
+	page := file.NewPageFromBytes(record)
+
+	assert.Equal(t, OP_CHECKPOINT, Op(page.GetInt(OffsetOp)))
 }

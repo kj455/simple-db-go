@@ -33,20 +33,19 @@ func NewConstant(kind Kind, val any) (*Const, error) {
 	}, nil
 }
 
-// AsInt returns the integer value of the constant.
-func (c *Const) AsInt() int {
+func (c *Const) AsInt() (int, error) {
 	if c.kind == KIND_INT {
-		return c.val.(int)
+		return c.val.(int), nil
 	}
-	return 0 // or panic/error if you want to handle it strictly
+	return 0, fmt.Errorf("constant: value is not an integer")
 }
 
 // AsString returns the string value of the constant.
-func (c *Const) AsString() string {
+func (c *Const) AsString() (string, error) {
 	if c.kind == KIND_STR {
-		return c.val.(string)
+		return c.val.(string), nil
 	}
-	return "" // or panic/error if you want to handle it strictly
+	return "", fmt.Errorf("constant: value is not a string")
 }
 
 // Equals checks if two constants are equal.
@@ -73,26 +72,34 @@ func (c *Const) CompareTo(other *Const) int {
 }
 
 // HashCode returns the hash code of the constant.
-func (c *Const) HashCode() int {
+func (c *Const) HashCode() (int, error) {
 	// TODO: Implement more valid hash code
 	switch c.kind {
 	case KIND_INT:
 		return c.AsInt()
 	case KIND_STR:
-		return len(c.AsString())
+		str, err := c.AsString()
+		if err != nil {
+			return 0, err
+		}
+		return len(str), nil
+	default:
+		return 0, fmt.Errorf("constant: unknown kind")
 	}
-	return 0
 }
 
 // ToString returns the string representation of the constant.
 func (c *Const) ToString() string {
 	switch c.kind {
 	case KIND_INT:
-		return fmt.Sprint(c.AsInt())
+		in, _ := c.AsInt()
+		return fmt.Sprint(in)
 	case KIND_STR:
-		return c.AsString()
+		str, _ := c.AsString()
+		return str
+	default:
+		return "unknown"
 	}
-	return ""
 }
 
 func (c *Const) Kind() Kind {

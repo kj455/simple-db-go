@@ -5,7 +5,6 @@ import (
 
 	"github.com/kj455/db/pkg/file"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestConcurrency_NewConcurrencyMgr(t *testing.T) {
@@ -14,132 +13,50 @@ func TestConcurrency_NewConcurrencyMgr(t *testing.T) {
 	assert.Equal(t, 0, len(cm.Locks))
 }
 
-func newMockConcurrencyMgr(m *mocks) *ConcurrencyMgrImpl {
-	return &ConcurrencyMgrImpl{
-		l:     m.lock,
-		Locks: make(map[file.BlockId]LockType),
-	}
+func TestConcurrencyMgr_SLock(t *testing.T) {
+	t.Parallel()
+	const filename = "test_concurrency_slock"
+	concurMgr := NewConcurrencyMgr()
+	block1 := file.NewBlockId(filename, 1)
+	err := concurMgr.SLock(block1)
+
+	// 1st SLock
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(concurMgr.Locks))
+	assert.Equal(t, LOCK_TYPE_S, concurMgr.Locks[block1])
+
+	// 2nd SLock on the same block
+	err = concurMgr.SLock(block1)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(concurMgr.Locks))
+	assert.Equal(t, LOCK_TYPE_S, concurMgr.Locks[block1])
+
+	concurMgr.Release()
+	assert.Equal(t, 0, len(concurMgr.Locks))
 }
 
-func TestConcurrency_SLock(t *testing.T) {
+func TestConcurrencyMgr_XLock(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *ConcurrencyMgrImpl)
-		expect func(*ConcurrencyMgrImpl, file.BlockId)
-	}{
-		{
-			name: "SLock",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				m.lock.EXPECT().SLock(m.block).Return(nil)
-			},
-			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
-				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, LOCK_TYPE_SLOCK, cm.Locks[b])
-			},
-		},
-		{
-			name: "already SLocked",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = LOCK_TYPE_SLOCK
-			},
-			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
-				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, LOCK_TYPE_SLOCK, cm.Locks[b])
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			cm := newMockConcurrencyMgr(m)
-			tt.setup(m, cm)
-			err := cm.SLock(m.block)
-			assert.NoError(t, err)
-			tt.expect(cm, m.block)
-		})
-	}
-}
+	t.Run("XLock", func(t *testing.T) {
+		const filename = "test_concurrency_xlock"
+		concurMgr := NewConcurrencyMgr()
+		block1 := file.NewBlockId(filename, 1)
+		assert.False(t, concurMgr.HasXLock(block1))
+		err := concurMgr.XLock(block1)
 
-func TestConcurrency_XLock(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *ConcurrencyMgrImpl)
-		expect func(*ConcurrencyMgrImpl, file.BlockId)
-	}{
-		{
-			name: "XLock",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				m.lock.EXPECT().SLock(m.block).Return(nil)
-				m.lock.EXPECT().XLock(m.block).Return(nil)
-			},
-			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
-				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, LOCK_TYPE_XLOCK, cm.Locks[b])
-			},
-		},
-		{
-			name: "already XLocked",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = LOCK_TYPE_XLOCK
-			},
-			expect: func(cm *ConcurrencyMgrImpl, b file.BlockId) {
-				assert.Equal(t, 1, len(cm.Locks))
-				assert.Equal(t, LOCK_TYPE_XLOCK, cm.Locks[b])
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			cm := newMockConcurrencyMgr(m)
-			tt.setup(m, cm)
-			err := cm.XLock(m.block)
-			assert.NoError(t, err)
-			tt.expect(cm, m.block)
-		})
-	}
-}
+		// 1st XLock
+		assert.NoError(t, err)
+		assert.True(t, concurMgr.HasXLock(block1))
+		assert.Equal(t, 1, len(concurMgr.Locks))
+		assert.Equal(t, LOCK_TYPE_X, concurMgr.Locks[block1])
 
-func TestConcurrency_Release(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *ConcurrencyMgrImpl)
-		expect func(*ConcurrencyMgrImpl)
-	}{
-		{
-			name: "release",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {
-				cm.Locks[m.block] = LOCK_TYPE_XLOCK
-				m.lock.EXPECT().Unlock(m.block)
-			},
-			expect: func(cm *ConcurrencyMgrImpl) {
-				assert.Equal(t, 0, len(cm.Locks))
-			},
-		},
-		{
-			name:  "empty",
-			setup: func(m *mocks, cm *ConcurrencyMgrImpl) {},
-			expect: func(cm *ConcurrencyMgrImpl) {
-				assert.Equal(t, 0, len(cm.Locks))
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			cm := newMockConcurrencyMgr(m)
-			tt.setup(m, cm)
-			cm.Release()
-			tt.expect(cm)
-		})
-	}
+		// 2nd XLock on the same block
+		err = concurMgr.XLock(block1)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(concurMgr.Locks))
+		assert.Equal(t, LOCK_TYPE_X, concurMgr.Locks[block1])
+
+		concurMgr.Release()
+		assert.Equal(t, 0, len(concurMgr.Locks))
+	})
 }

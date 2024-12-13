@@ -8,80 +8,118 @@ import (
 )
 
 const (
-	viewCatalogTable     = "viewcat"
-	viewCatalogFieldName = "viewname"
-	viewCatalogFieldDef  = "viewdef"
+	tableViewCatalog = "viewcat"
+
+	fieldViewName = "viewname"
+	fieldDef      = "viewdef"
+
+	MAX_VIEW_DEF = 100
 )
 
-const MAX_VIEWDEF = 100
+var (
+	ErrViewNotFound = fmt.Errorf("metadata: view not found")
+)
 
 type ViewMgrImpl struct {
-	tblMgr TableMgr
+	tableMgr TableMgr
 }
 
-func NewViewMgr(isNew bool, tblMgr TableMgr, tx tx.Transaction) (ViewMgr, error) {
-	vm := &ViewMgrImpl{tblMgr: tblMgr}
-	if !isNew {
+func NewViewMgr(tableMgr TableMgr, tx tx.Transaction) (*ViewMgrImpl, error) {
+	vm := &ViewMgrImpl{tableMgr: tableMgr}
+	hasTable, err := tableMgr.HasTable(tableViewCatalog, tx)
+	if err != nil {
+		return nil, fmt.Errorf("metadata: failed to check for view catalog: %w", err)
+	}
+	if hasTable {
 		return vm, nil
 	}
 	sch := record.NewSchema()
-	sch.AddStringField(viewCatalogFieldName, MAX_NAME)
-	sch.AddStringField(viewCatalogFieldDef, MAX_VIEWDEF)
-	if err := tblMgr.CreateTable(viewCatalogTable, sch, tx); err != nil {
-		return nil, fmt.Errorf("view manager: %w", err)
+	sch.AddStringField(fieldViewName, MAX_NAME_LENGTH)
+	sch.AddStringField(fieldDef, MAX_VIEW_DEF)
+	if err := tableMgr.CreateTable(tableViewCatalog, sch, tx); err != nil {
+		return nil, fmt.Errorf("metadata: failed to create view catalog: %w", err)
 	}
 	return vm, nil
 }
 
-func (vm *ViewMgrImpl) CreateView(vname, vdef string, tx tx.Transaction) error {
-	layout, err := vm.tblMgr.GetLayout(viewCatalogTable, tx)
+func (vm *ViewMgrImpl) CreateView(name, def string, tx tx.Transaction) error {
+	layout, err := vm.tableMgr.GetLayout(tableViewCatalog, tx)
 	if err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+		return fmt.Errorf("metadata: failed to get view catalog layout: %w", err)
 	}
-	ts, err := record.NewTableScan(tx, viewCatalogTable, layout)
+	ts, err := record.NewTableScan(tx, tableViewCatalog, layout)
 	if err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+		return fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
+	defer ts.Close()
 	if err := ts.Insert(); err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+		return fmt.Errorf("metadata: failed to insert into view catalog: %w", err)
 	}
-	if err := ts.SetString(viewCatalogFieldName, vname); err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+	if err := ts.SetString(fieldViewName, name); err != nil {
+		return fmt.Errorf("metadata: failed to set view name: %w", err)
 	}
-	if err := ts.SetString(viewCatalogFieldDef, vdef); err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+	if err := ts.SetString(fieldDef, def); err != nil {
+		return fmt.Errorf("metadata: failed to set view def: %w", err)
 	}
-	if err := ts.SetString(viewCatalogFieldDef, vdef); err != nil {
-		return fmt.Errorf("view manager: create view: %w", err)
+	if err := ts.SetString(fieldDef, def); err != nil {
+		return fmt.Errorf("metadata: failed to set view def: %w", err)
 	}
-	ts.Close()
 	return nil
 }
 
 func (vm *ViewMgrImpl) GetViewDef(vname string, tx tx.Transaction) (string, error) {
 	var result string
-	layout, err := vm.tblMgr.GetLayout(viewCatalogTable, tx)
+	layout, err := vm.tableMgr.GetLayout(tableViewCatalog, tx)
 	if err != nil {
-		return "", fmt.Errorf("view manager: get view def: %w", err)
+		return "", fmt.Errorf("metadata: failed to get view catalog layout: %w", err)
 	}
-	ts, err := record.NewTableScan(tx, viewCatalogTable, layout)
+	ts, err := record.NewTableScan(tx, tableViewCatalog, layout)
 	if err != nil {
-		return "", fmt.Errorf("view manager: get view def: %w", err)
+		return "", fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
+	defer ts.Close()
 	for ts.Next() {
-		name, err := ts.GetString(viewCatalogFieldName)
+		name, err := ts.GetString(fieldViewName)
 		if err != nil {
-			return "", fmt.Errorf("view manager: get view def: %w", err)
+			return "", fmt.Errorf("metadata: failed to get view name: %w", err)
 		}
 		if name != vname {
 			continue
 		}
-		result, err = ts.GetString(viewCatalogFieldDef)
+		result, err = ts.GetString(fieldDef)
 		if err != nil {
-			return "", fmt.Errorf("view manager: get view def: %w", err)
+			return "", fmt.Errorf("metadata: failed to get view def: %w", err)
 		}
 		break
 	}
-	ts.Close()
+	if result == "" {
+		return "", ErrViewNotFound
+	}
 	return result, nil
+}
+
+func (vm *ViewMgrImpl) DeleteView(vname string, tx tx.Transaction) error {
+	layout, err := vm.tableMgr.GetLayout(tableViewCatalog, tx)
+	if err != nil {
+		return fmt.Errorf("metadata: failed to get view catalog layout: %w", err)
+	}
+	ts, err := record.NewTableScan(tx, tableViewCatalog, layout)
+	if err != nil {
+		return fmt.Errorf("metadata: failed to create table scan: %w", err)
+	}
+	defer ts.Close()
+	for ts.Next() {
+		name, err := ts.GetString(fieldViewName)
+		if err != nil {
+			return fmt.Errorf("metadata: failed to get view name: %w", err)
+		}
+		if name != vname {
+			continue
+		}
+		if err := ts.Delete(); err != nil {
+			return fmt.Errorf("metadata: failed to delete view: %w", err)
+		}
+		break
+	}
+	return nil
 }

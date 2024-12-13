@@ -8,7 +8,19 @@ import (
 	"github.com/kj455/db/pkg/file"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+
+	tmock "github.com/kj455/db/pkg/time/mock"
 )
+
+type mocks struct {
+	time *tmock.MockTime
+}
+
+func newMocks(ctrl *gomock.Controller) *mocks {
+	return &mocks{
+		time: tmock.NewMockTime(ctrl),
+	}
+}
 
 func TestNewLock(t *testing.T) {
 	t.Parallel()
@@ -28,8 +40,9 @@ func newMockLock(m *mocks) *LockImpl {
 	l := &LockImpl{
 		time:  m.time,
 		locks: make(map[file.BlockId]lockState),
+		mu:    &sync.Mutex{},
 	}
-	l.cond = sync.NewCond(&l.mu)
+	l.cond = sync.NewCond(l.mu)
 	return l
 }
 
@@ -60,8 +73,9 @@ func TestSLock(t *testing.T) {
 			m := newMocks(ctrl)
 			l := newMockLock(m)
 			tt.setup(m, l)
-			err := l.SLock(m.block)
-			tt.expect(l, m.block)
+			block := file.NewBlockId("test", 0)
+			err := l.SLock(block)
+			tt.expect(l, block)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -77,19 +91,20 @@ func TestSLock_Wait(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	m := newMocks(ctrl)
+	block := file.NewBlockId("test", 0)
 	now := time.Date(2024, 5, 27, 0, 0, 0, 0, time.UTC)
 	m.time.EXPECT().Now().Return(now).AnyTimes()
 	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
 	l := NewLock(WithTime(m.time))
 
 	// XLock を取得しておく
-	err := l.XLock(m.block)
+	err := l.XLock(block)
 	assert.NoError(t, err)
 
 	// SLock の取得を試みるが、XLock が解放されるまで待機
 	done := make(chan bool)
 	go func() {
-		err := l.SLock(m.block)
+		err := l.SLock(block)
 		assert.NoError(t, err)
 		done <- true
 	}()
@@ -97,14 +112,14 @@ func TestSLock_Wait(t *testing.T) {
 	time.Sleep(100 * time.Millisecond) // 少し待機
 
 	go func() {
-		l.Unlock(m.block) // 別のゴルーチンで XLock を解放
+		l.Unlock(block) // 別のゴルーチンで XLock を解放
 	}()
 
 	select {
 	case <-done:
 		// SLock が取得できた場合
 		assert.Equal(t, 1, len(l.locks))
-		assert.Equal(t, lockState(1), l.locks[m.block])
+		assert.Equal(t, lockState(1), l.locks[block])
 	case <-time.After(1 * time.Second):
 		t.Fatal("SLock did not proceed in time")
 	}
@@ -136,9 +151,10 @@ func TestXLock(t *testing.T) {
 			defer ctrl.Finish()
 			m := newMocks(ctrl)
 			l := newMockLock(m)
+			block := file.NewBlockId("test", 0)
 			tt.setup(m, l)
-			err := l.XLock(m.block)
-			tt.expect(l, m.block)
+			err := l.XLock(block)
+			tt.expect(l, block)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -161,17 +177,18 @@ func TestXLock_Wait(t *testing.T) {
 	m.time.EXPECT().Now().Return(now).AnyTimes()
 	m.time.EXPECT().Since(now).Return(maxWaitTime + 1)
 	l := NewLock(WithTime(m.time))
+	block := file.NewBlockId("test", 0)
 
 	// SLock を2つ取得しておく
 	for i := 0; i < lockNum; i++ {
-		err := l.SLock(m.block)
+		err := l.SLock(block)
 		assert.NoError(t, err)
 	}
 
 	// XLock の取得を試みるが、SLock が解放されるまで待機
 	done := make(chan bool)
 	go func() {
-		err := l.XLock(m.block)
+		err := l.XLock(block)
 		assert.NoError(t, err)
 		done <- true
 	}()
@@ -180,14 +197,14 @@ func TestXLock_Wait(t *testing.T) {
 
 	// SLock を解放し、Broadcast する
 	for i := 0; i < lockNum; i++ {
-		l.Unlock(m.block)
+		l.Unlock(block)
 	}
 
 	select {
 	case <-done:
 		// XLock が取得できた場合
 		assert.Equal(t, 1, len(l.locks))
-		assert.Equal(t, LOCK_STATE_X_LOCKED, l.locks[m.block])
+		assert.Equal(t, LOCK_STATE_X_LOCKED, l.locks[block])
 	case <-time.After(1 * time.Second):
 		t.Fatal("XLock did not proceed in time")
 	}
@@ -197,13 +214,13 @@ func TestUnlock(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name   string
-		setup  func(*mocks, *LockImpl)
+		setup  func(*LockImpl, file.BlockId)
 		expect func(l *LockImpl, b file.BlockId)
 	}{
 		{
 			name: "success - multiple S lock",
-			setup: func(m *mocks, l *LockImpl) {
-				l.locks[m.block] = 2
+			setup: func(l *LockImpl, block file.BlockId) {
+				l.locks[block] = 2
 			},
 			expect: func(l *LockImpl, b file.BlockId) {
 				assert.Equal(t, 1, len(l.locks))
@@ -212,8 +229,8 @@ func TestUnlock(t *testing.T) {
 		},
 		{
 			name: "success - single S lock",
-			setup: func(m *mocks, l *LockImpl) {
-				l.locks[m.block] = 1
+			setup: func(l *LockImpl, block file.BlockId) {
+				l.locks[block] = 1
 			},
 			expect: func(l *LockImpl, b file.BlockId) {
 				assert.Equal(t, 0, len(l.locks))
@@ -222,7 +239,7 @@ func TestUnlock(t *testing.T) {
 		},
 		{
 			name:  "error - no lock",
-			setup: func(m *mocks, l *LockImpl) {},
+			setup: func(l *LockImpl, block file.BlockId) {},
 			expect: func(l *LockImpl, b file.BlockId) {
 				assert.Equal(t, 0, len(l.locks))
 			},
@@ -234,9 +251,10 @@ func TestUnlock(t *testing.T) {
 			defer ctrl.Finish()
 			m := newMocks(ctrl)
 			l := newMockLock(m)
-			tt.setup(m, l)
-			l.Unlock(m.block)
-			tt.expect(l, m.block)
+			block := file.NewBlockId("test", 0)
+			tt.setup(l, block)
+			l.Unlock(block)
+			tt.expect(l, block)
 		})
 	}
 }

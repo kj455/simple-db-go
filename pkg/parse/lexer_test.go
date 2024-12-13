@@ -39,4 +39,18 @@ func TestLexer(t *testing.T) {
 		assert.Equal(t, "foo", l)
 		assert.Equal(t, 1, r)
 	})
+	t.Run("select a from foo", func(t *testing.T) {
+		lex := NewLexer("select a from foo")
+
+		err := lex.EatKeyword("select")
+		assert.NoError(t, err)
+
+		fld, _ := lex.EatId()
+		assert.Equal(t, "a", fld)
+
+		lex.EatKeyword("from")
+		tbl, _ := lex.EatId()
+
+		assert.Equal(t, "foo", tbl)
+	})
 }

@@ -10,11 +10,18 @@ import (
 type TokenType int
 
 const (
-	Unknown TokenType = iota
-	EOF
-	Word
-	Number
-	Other
+	TokenUnknown TokenType = iota
+	TokenEOF
+	TokenWord
+	TokenNumber
+	TokenString
+	TokenOther
+)
+
+const (
+	DelimiterEOF    = -1
+	DelimiterSpace  = ' '
+	DelimiterSingle = '\''
 )
 
 var (
@@ -46,15 +53,16 @@ var keywords = []string{
 type Lexer struct {
 	keywords map[string]bool
 	tok      *bufio.Scanner
-	typ      rune
-	sval     string
-	nval     int
+	typ      TokenType
+	strVal   string
+	numVal   int
 }
 
-func ScanSqlChars(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func scanSQLChars(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	start := 0
 
-	for start < len(data) && (data[start] == ' ') {
+	// Skip leading spaces
+	for start < len(data) && data[start] == DelimiterSpace {
 		start++
 	}
 
@@ -62,21 +70,18 @@ func ScanSqlChars(data []byte, atEOF bool) (advance int, token []byte, err error
 		return
 	}
 
-	if data[start] == '(' || data[start] == ')' || data[start] == ',' || data[start] == '=' {
+	// Single character delimiters
+	if strings.ContainsRune("(),=", rune(data[start])) {
 		return start + 1, data[start : start+1], nil
 	}
 
-	// Find the end of the current token
+	// Collect token until delimiter or space
 	for i := start; i < len(data); i++ {
-		if data[i] == ' ' || data[i] == '(' || data[i] == ')' || data[i] == ',' || data[i] == '=' {
-			if data[i] == '(' || data[i] == ')' || data[i] == ',' || data[i] == '=' {
-				return i, data[start:i], nil
-			}
-			return i + 1, data[start:i], nil
+		if data[i] == DelimiterSpace || strings.ContainsRune("(),=", rune(data[i])) {
+			return i, data[start:i], nil
 		}
 	}
 
-	// If we're at the end of the data and there's still some token left
 	if atEOF && len(data) > start {
 		return len(data), data[start:], nil
 	}
@@ -90,9 +95,17 @@ func NewLexer(s string) *Lexer {
 		keywords: initKeywords(),
 		tok:      bufio.NewScanner(strings.NewReader(s)),
 	}
-	l.tok.Split(ScanSqlChars)
+	l.tok.Split(scanSQLChars)
 	l.nextToken()
 	return l
+}
+
+func initKeywords() map[string]bool {
+	m := make(map[string]bool)
+	for _, k := range keywords {
+		m[k] = true
+	}
+	return m
 }
 
 // matchDelim returns true if the current token is the specified delimiter character.
@@ -102,28 +115,28 @@ func (l *Lexer) MatchDelim(d rune) bool {
 	// if l.MatchKeyword(string(d)) && len(l.sval) == 1 {
 	// 	return rune(l.sval[0]) == d
 	// }
-	return d == rune(l.sval[0])
+	return d == rune(l.strVal[0])
 }
 
 // matchIntConstant returns true if the current token is an integer.
 func (l *Lexer) matchIntConstant() bool {
-	return l.typ == 'N' // Assuming 'N' represents a number
+	return l.typ == TokenNumber
 }
 
 // matchStringConstant returns true if the current token is a string.
 func (l *Lexer) MatchStringConstant() bool {
 	// return l.ttype == 'S' // Assuming 'S' represents a string
-	return rune(l.sval[0]) == '\''
+	return rune(l.strVal[0]) == '\''
 }
 
 // matchKeyword returns true if the current token is the specified keyword.
 func (l *Lexer) MatchKeyword(w string) bool {
-	return l.typ == 'W' && l.sval == w // Assuming 'W' represents a word
+	return l.typ == TokenWord && l.strVal == w
 }
 
 // matchId returns true if the current token is a legal identifier.
 func (l *Lexer) MatchId() bool {
-	return l.typ == 'W' && !l.keywords[l.sval]
+	return l.typ == TokenWord && !l.keywords[l.strVal]
 }
 
 // eatDelim throws an exception if the current token is not the specified delimiter. Otherwise, moves to the next token.
@@ -140,7 +153,7 @@ func (l *Lexer) EatIntConstant() (int, error) {
 	if !l.matchIntConstant() {
 		return 0, errBadSyntax
 	}
-	i := l.nval
+	i := l.numVal
 	l.nextToken()
 	return i, nil
 }
@@ -150,7 +163,7 @@ func (l *Lexer) EatStringConstant() (string, error) {
 	if !l.MatchStringConstant() {
 		return "", errBadSyntax
 	}
-	s := l.sval
+	s := l.strVal
 	l.nextToken()
 	return s, nil
 }
@@ -169,38 +182,27 @@ func (l *Lexer) EatId() (string, error) {
 	if !l.MatchId() {
 		return "", errBadSyntax
 	}
-	s := l.sval
+	s := l.strVal
 	l.nextToken()
 	return s, nil
 }
 
 func (l *Lexer) nextToken() {
-	if l.tok.Scan() {
-		// Here, we're making a simple assumption about token types. You might need to adjust this based on your actual needs.
-		token := l.tok.Text()
-		if _, err := strconv.Atoi(token); err == nil {
-			l.typ = 'N'
-			l.nval, _ = strconv.Atoi(token)
-			return
-		}
-		if strings.HasPrefix(token, "'") && strings.HasSuffix(token, "'") {
-			l.typ = 'S'
-			l.sval = token
-			// l.sval = token[1 : len(token)-1]
-			return
-		}
-		l.typ = 'W'
-		l.sval = strings.ToLower(token)
+	if !l.tok.Scan() {
+		l.typ = TokenEOF
 		return
 	}
-	l.typ = -1 // FIXME
-	l.typ = '.'
-}
-
-func initKeywords() map[string]bool {
-	m := make(map[string]bool)
-	for _, k := range keywords {
-		m[k] = true
+	token := l.tok.Text()
+	if numVal, err := strconv.Atoi(token); err == nil {
+		l.typ = TokenNumber
+		l.numVal = numVal
+		return
 	}
-	return m
+	if strings.HasPrefix(token, "'") && strings.HasSuffix(token, "'") {
+		l.typ = TokenString
+		l.strVal = token[1 : len(token)-1]
+		return
+	}
+	l.typ = TokenWord
+	l.strVal = strings.ToLower(token)
 }

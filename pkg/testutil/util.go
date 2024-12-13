@@ -5,7 +5,22 @@ import (
 	"path/filepath"
 )
 
-func ProjectRootDir() string {
+const testDir = ".tmp"
+
+// SetupFile creates a file in the test directory and returns the directory, file, and cleanup function.
+func SetupFile(filename string) (dir string, f *os.File, cleanup func()) {
+	path := filepath.Join(RootDir(), testDir, filename)
+	f, err := os.Create(path)
+	if err != nil {
+		panic(err)
+	}
+	cleanup = func() {
+		_ = os.Remove(path)
+	}
+	return filepath.Join(RootDir(), testDir), f, cleanup
+}
+
+func RootDir() string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		return ""

@@ -13,9 +13,9 @@ type PageImpl struct {
 	charset string
 }
 
-func NewPage(blockSize int) *PageImpl {
+func NewPage(size int) *PageImpl {
 	return &PageImpl{
-		buf:     bytes.NewBuffer(make([]byte, blockSize)),
+		buf:     bytes.NewBuffer(make([]byte, size)),
 		charset: defaultCharset,
 	}
 }

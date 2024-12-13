@@ -4,185 +4,51 @@ import (
 	"testing"
 
 	"github.com/kj455/db/pkg/buffer"
-	bmmock "github.com/kj455/db/pkg/buffer_mgr/mock"
+	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
 	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
-func TestBufferList_NewBufferList(t *testing.T) {
+func TestBufferList(t *testing.T) {
 	t.Parallel()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	bm := bmmock.NewMockBufferMgr(ctrl)
-	bl := NewBufferList(bm)
-	assert.Equal(t, 0, len(bl.buffers))
-	assert.Equal(t, 0, len(bl.pins))
-	assert.Equal(t, bm, bl.bm)
-}
+	const (
+		blockSize    = 4096
+		testFileName = "test_buffer_list"
+	)
+	dir, _, cleanup := testutil.SetupFile(testFileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, testFileName)
+	assert.NoError(t, err)
+	block1 := file.NewBlockId(testFileName, 0)
+	block2 := file.NewBlockId(testFileName, 1)
+	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	buf2 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buf, buf2})
+	bufferList := NewBufferList(bufferMgr)
 
-func newMockBufferList(m *mocks) *BufferListImpl {
-	return &BufferListImpl{
-		buffers: make(map[file.BlockId]buffer.Buffer),
-		pins:    make([]file.BlockId, 0),
-		bm:      m.bufferMgr,
-	}
-}
+	bufferList.Pin(block1)
+	assert.Equal(t, 1, len(bufferList.pins))
+	assert.Equal(t, 1, len(bufferList.buffers))
+	b, ok := bufferList.GetBuffer(block1)
+	assert.True(t, ok)
+	assert.Equal(t, buf, b)
 
-func TestBufferList_GetBuffer(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *BufferListImpl)
-		expect func(*testing.T, buffer.Buffer, bool)
-	}{
-		{
-			name: "found",
-			setup: func(m *mocks, bl *BufferListImpl) {
-				bl.buffers[m.block] = m.buffer
-			},
-			expect: func(t *testing.T, buf buffer.Buffer, ok bool) {
-				assert.NotNil(t, buf)
-				assert.True(t, ok)
-			},
-		},
-		{
-			name:  "GetBuffer not found",
-			setup: func(m *mocks, bl *BufferListImpl) {},
-			expect: func(t *testing.T, buf buffer.Buffer, ok bool) {
-				assert.Nil(t, buf)
-				assert.False(t, ok)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			bl := newMockBufferList(m)
-			tt.setup(m, bl)
-			buf, ok := bl.GetBuffer(m.block)
-			tt.expect(t, buf, ok)
-		})
-	}
-}
+	bufferList.Pin(block1)
+	assert.Equal(t, 2, len(bufferList.pins))
+	assert.Equal(t, 1, len(bufferList.buffers))
 
-func TestBufferList_Pin(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *BufferListImpl)
-		expect func(*mocks, *BufferListImpl, file.BlockId)
-	}{
-		{
-			name: "Pin",
-			setup: func(m *mocks, bl *BufferListImpl) {
-				m.bufferMgr.EXPECT().Pin(m.block).Return(m.buffer, nil)
-			},
-			expect: func(m *mocks, bl *BufferListImpl, b file.BlockId) {
-				assert.Equal(t, 1, len(bl.buffers))
-				assert.Equal(t, 1, len(bl.pins))
-				assert.Equal(t, m.buffer, bl.buffers[b])
-				assert.Equal(t, b, bl.pins[0])
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			bl := newMockBufferList(m)
-			tt.setup(m, bl)
-			bl.Pin(m.block)
-			tt.expect(m, bl, m.block)
-		})
-	}
-}
+	bufferList.Pin(block2)
+	assert.Equal(t, 3, len(bufferList.pins))
+	assert.Equal(t, 2, len(bufferList.buffers))
 
-func TestBufferList_Unpin(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *BufferListImpl)
-		expect func(*mocks, *BufferListImpl, file.BlockId)
-	}{
-		{
-			name: "Unpin",
-			setup: func(m *mocks, bl *BufferListImpl) {
-				bl.buffers[m.block] = m.buffer
-				m.bufferMgr.EXPECT().Unpin(m.buffer)
-				bl.pins = []file.BlockId{m.block, m.block2, m.block3}
-				m.block.EXPECT().Equals(m.block).Return(true)
-				m.block2.EXPECT().Equals(m.block).Return(false)
-				m.block3.EXPECT().Equals(m.block).Return(false)
-			},
-			expect: func(m *mocks, bl *BufferListImpl, b file.BlockId) {
-				assert.Equal(t, 2, len(bl.pins))
-				assert.Equal(t, 0, len(bl.buffers))
-			},
-		},
-		{
-			name:  "not found",
-			setup: func(m *mocks, bl *BufferListImpl) {},
-			expect: func(m *mocks, bl *BufferListImpl, b file.BlockId) {
-				assert.Equal(t, 0, len(bl.pins))
-				assert.Equal(t, 0, len(bl.buffers))
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			bl := newMockBufferList(m)
-			tt.setup(m, bl)
-			bl.Unpin(m.block)
-			tt.expect(m, bl, m.block)
-		})
-	}
-}
+	bufferList.Unpin(block1)
+	assert.Equal(t, 2, len(bufferList.pins))
+	assert.Equal(t, 2, len(bufferList.buffers))
 
-func TestBufferList_UnpinAll(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		setup  func(*mocks, *BufferListImpl)
-		expect func(*mocks, *BufferListImpl)
-	}{
-		{
-			name: "UnpinAll",
-			setup: func(m *mocks, bl *BufferListImpl) {
-				bl.pins = []file.BlockId{m.block, m.block2, m.block3}
-				bl.buffers[m.block] = m.buffer
-				bl.buffers[m.block3] = m.buffer
-				m.bufferMgr.EXPECT().Unpin(m.buffer).Times(2)
-			},
-			expect: func(m *mocks, bl *BufferListImpl) {
-				assert.Equal(t, 0, len(bl.pins))
-				assert.Equal(t, 0, len(bl.buffers))
-			},
-		},
-		{
-			name:  "UnpinAll empty",
-			setup: func(m *mocks, bl *BufferListImpl) {},
-			expect: func(m *mocks, bl *BufferListImpl) {
-				assert.Equal(t, 0, len(bl.pins))
-				assert.Equal(t, 0, len(bl.buffers))
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			m := newMocks(ctrl)
-			bl := newMockBufferList(m)
-			tt.setup(m, bl)
-			bl.UnpinAll()
-			tt.expect(m, bl)
-		})
-	}
+	bufferList.UnpinAll()
+	assert.Equal(t, 0, len(bufferList.pins))
+	assert.Equal(t, 0, len(bufferList.buffers))
 }

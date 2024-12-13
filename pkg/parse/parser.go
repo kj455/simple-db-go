@@ -10,40 +10,37 @@ import (
 
 // Parser is the SimpleDB parser.
 type Parser struct {
-	lex *Lexer
+	lexer *Lexer
 }
 
-// NewParser creates a new parser for SQL statement s.
-func NewParser(s string) *Parser {
-	return &Parser{lex: NewLexer(s)}
+func NewParser(input string) *Parser {
+	return &Parser{lexer: NewLexer(input)}
 }
 
-// Field parses and returns a field.
 func (p *Parser) Field() (string, error) {
-	return p.lex.EatId()
+	return p.lexer.EatId()
 }
 
-// Constant parses and returns a constant.
 func (p *Parser) Constant() (*constant.Const, error) {
-	if p.lex.MatchStringConstant() {
-		str, err := p.lex.EatStringConstant()
+	if p.lexer.MatchStringConstant() {
+		str, err := p.lexer.EatStringConstant()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse: invalid string constant: %w", err)
 		}
 		cons, err := constant.NewConstant(constant.KIND_STR, str)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse: invalid string constant: %w", err)
 		}
 		return cons, nil
 	}
-	if p.lex.matchIntConstant() {
-		in, err := p.lex.EatIntConstant()
+	if p.lexer.matchIntConstant() {
+		num, err := p.lexer.EatIntConstant()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse: invalid integer constant: %w", err)
 		}
-		cons, err := constant.NewConstant(constant.KIND_INT, in)
+		cons, err := constant.NewConstant(constant.KIND_INT, num)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse: invalid integer constant: %w", err)
 		}
 		return cons, nil
 	}
@@ -51,19 +48,19 @@ func (p *Parser) Constant() (*constant.Const, error) {
 }
 
 // Expression parses and returns an expression.
-func (p *Parser) Expression() (*query.ExpressionImpl, error) {
-	if p.lex.MatchId() {
-		f, err := p.Field()
+func (p *Parser) Expression() (query.Expression, error) {
+	if p.lexer.MatchId() {
+		field, err := p.Field()
 		if err != nil {
 			return nil, err
 		}
-		return query.NewFieldExpression(f), nil
+		return query.NewFieldExpression(field), nil
 	}
-	con, err := p.Constant()
+	constant, err := p.Constant()
 	if err != nil {
 		return nil, err
 	}
-	return query.NewConstantExpression(con), nil
+	return query.NewConstantExpression(constant), nil
 }
 
 // Term parses and returns a term.
@@ -72,8 +69,8 @@ func (p *Parser) Term() (*query.Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('='); err != nil {
-		return nil, err
+	if err := p.lexer.EatDelim('='); err != nil {
+		return nil, fmt.Errorf("expected '=' in term: %w", err)
 	}
 	rhs, err := p.Expression()
 	if err != nil {
@@ -82,36 +79,35 @@ func (p *Parser) Term() (*query.Term, error) {
 	return query.NewTerm(lhs, rhs), nil
 }
 
-// Predicate parses and returns a predicate.
 func (p *Parser) Predicate() (*query.PredicateImpl, error) {
 	term, err := p.Term()
 	if err != nil {
 		return nil, err
 	}
-	pred := query.NewPredicate(term)
-	if p.lex.MatchKeyword("and") {
-		if err := p.lex.EatKeyword("and"); err != nil {
+	predicate := query.NewPredicate(term)
+	for p.lexer.MatchKeyword("and") {
+		if err := p.lexer.EatKeyword("and"); err != nil {
 			return nil, err
 		}
-		p, err := p.Predicate()
+		nextPredicate, err := p.Predicate()
 		if err != nil {
 			return nil, err
 		}
-		pred.ConjoinWith(p)
+		predicate.ConjoinWith(nextPredicate)
 	}
-	return pred, nil
+	return predicate, nil
 }
 
-// Query parses and returns a query data.
+// Query parses and returns a query.
 func (p *Parser) Query() (*QueryData, error) {
-	if err := p.lex.EatKeyword("select"); err != nil {
+	if err := p.lexer.EatKeyword("select"); err != nil {
 		return nil, err
 	}
 	fields, err := p.selectList()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("from"); err != nil {
+	if err := p.lexer.EatKeyword("from"); err != nil {
 		return nil, err
 	}
 	tables, err := p.tableList()
@@ -119,8 +115,8 @@ func (p *Parser) Query() (*QueryData, error) {
 		return nil, err
 	}
 	pred := &query.PredicateImpl{}
-	if p.lex.MatchKeyword("where") {
-		if err := p.lex.EatKeyword("where"); err != nil {
+	if p.lexer.MatchKeyword("where") {
+		if err := p.lexer.EatKeyword("where"); err != nil {
 			return nil, err
 		}
 		pred, err = p.Predicate()
@@ -136,67 +132,67 @@ func (p *Parser) selectList() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	L := []string{f}
-	if p.lex.MatchDelim(',') {
-		if err := p.lex.EatDelim(','); err != nil {
+	l := []string{f}
+	if p.lexer.MatchDelim(',') {
+		if err := p.lexer.EatDelim(','); err != nil {
 			return nil, err
 		}
 		list, err := p.selectList()
 		if err != nil {
 			return nil, err
 		}
-		L = append(L, list...)
+		l = append(l, list...)
 	}
-	return L, nil
+	return l, nil
 }
 
 func (p *Parser) tableList() ([]string, error) {
-	id, err := p.lex.EatId()
+	id, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	L := []string{id}
-	if p.lex.MatchDelim(',') {
-		if err := p.lex.EatDelim(','); err != nil {
+	l := []string{id}
+	if p.lexer.MatchDelim(',') {
+		if err := p.lexer.EatDelim(','); err != nil {
 			return nil, err
 		}
 		list, err := p.tableList()
 		if err != nil {
 			return nil, err
 		}
-		L = append(L, list...)
+		l = append(l, list...)
 	}
-	return L, nil
+	return l, nil
 }
 
 // UpdateCmd parses and returns an update command.
 func (p *Parser) UpdateCmd() (any, error) {
-	if p.lex.MatchKeyword("insert") {
+	if p.lexer.MatchKeyword("insert") {
 		return p.Insert()
 	}
-	if p.lex.MatchKeyword("delete") {
+	if p.lexer.MatchKeyword("delete") {
 		return p.Delete()
 	}
-	if p.lex.MatchKeyword("update") {
+	if p.lexer.MatchKeyword("update") {
 		return p.Modify()
 	}
-	if p.lex.MatchKeyword("create") {
+	if p.lexer.MatchKeyword("create") {
 		return p.create()
 	}
 	return nil, fmt.Errorf("parse: invalid command")
 }
 
 func (p *Parser) create() (any, error) {
-	if err := p.lex.EatKeyword("create"); err != nil {
+	if err := p.lexer.EatKeyword("create"); err != nil {
 		return nil, err
 	}
-	if p.lex.MatchKeyword("table") {
+	if p.lexer.MatchKeyword("table") {
 		return p.CreateTable()
 	}
-	if p.lex.MatchKeyword("view") {
+	if p.lexer.MatchKeyword("view") {
 		return p.CreateView()
 	}
-	if p.lex.MatchKeyword("index") {
+	if p.lexer.MatchKeyword("index") {
 		return p.CreateIndex()
 	}
 	return nil, fmt.Errorf("parse: invalid command")
@@ -204,19 +200,19 @@ func (p *Parser) create() (any, error) {
 
 // Delete parses and returns a delete data.
 func (p *Parser) Delete() (*DeleteData, error) {
-	if err := p.lex.EatKeyword("delete"); err != nil {
+	if err := p.lexer.EatKeyword("delete"); err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("from"); err != nil {
+	if err := p.lexer.EatKeyword("from"); err != nil {
 		return nil, err
 	}
-	table, err := p.lex.EatId()
+	table, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
 	pred := &query.PredicateImpl{}
-	if p.lex.MatchKeyword("where") {
-		if err := p.lex.EatKeyword("where"); err != nil {
+	if p.lexer.MatchKeyword("where") {
+		if err := p.lexer.EatKeyword("where"); err != nil {
 			return nil, err
 		}
 		pred, err = p.Predicate()
@@ -229,59 +225,59 @@ func (p *Parser) Delete() (*DeleteData, error) {
 
 // Insert parses and returns an insert data.
 func (p *Parser) Insert() (*InsertData, error) {
-	if err := p.lex.EatKeyword("insert"); err != nil {
+	if err := p.lexer.EatKeyword("insert"); err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("into"); err != nil {
+	if err := p.lexer.EatKeyword("into"); err != nil {
 		return nil, err
 	}
-	table, err := p.lex.EatId()
+	table, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('('); err != nil {
+	if err := p.lexer.EatDelim('('); err != nil {
 		return nil, err
 	}
-	fields, err := p.fieldList()
+	fields, err := p.FieldList()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim(')'); err != nil {
+	if err := p.lexer.EatDelim(')'); err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("values"); err != nil {
+	if err := p.lexer.EatKeyword("values"); err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('('); err != nil {
+	if err := p.lexer.EatDelim('('); err != nil {
 		return nil, err
 	}
 	vals, err := p.constList()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim(')'); err != nil {
+	if err := p.lexer.EatDelim(')'); err != nil {
 		return nil, err
 	}
 	return NewInsertData(table, fields, vals), nil
 }
 
-func (p *Parser) fieldList() ([]string, error) {
-	f, err := p.Field()
+func (p *Parser) FieldList() ([]string, error) {
+	item, err := p.Field()
 	if err != nil {
 		return nil, err
 	}
-	L := []string{f}
-	if p.lex.MatchDelim(',') {
-		if err := p.lex.EatDelim(','); err != nil {
+	list := []string{item}
+	for p.lexer.MatchDelim(',') {
+		if err := p.lexer.EatDelim(','); err != nil {
 			return nil, err
 		}
-		list, err := p.fieldList()
+		item, err := p.Field()
 		if err != nil {
 			return nil, err
 		}
-		L = append(L, list...)
+		list = append(list, item)
 	}
-	return L, nil
+	return list, nil
 }
 
 func (p *Parser) constList() ([]*constant.Const, error) {
@@ -289,37 +285,37 @@ func (p *Parser) constList() ([]*constant.Const, error) {
 	if err != nil {
 		return nil, err
 	}
-	L := []*constant.Const{cons}
-	if p.lex.MatchDelim(',') {
-		if err := p.lex.EatDelim(','); err != nil {
+	l := []*constant.Const{cons}
+	if p.lexer.MatchDelim(',') {
+		if err := p.lexer.EatDelim(','); err != nil {
 			return nil, err
 		}
 		list, err := p.constList()
 		if err != nil {
 			return nil, err
 		}
-		L = append(L, list...)
+		l = append(l, list...)
 	}
-	return L, nil
+	return l, nil
 }
 
 // Modify parses and returns a modify data.
 func (p *Parser) Modify() (*ModifyData, error) {
-	if err := p.lex.EatKeyword("update"); err != nil {
+	if err := p.lexer.EatKeyword("update"); err != nil {
 		return nil, err
 	}
-	table, err := p.lex.EatId()
+	table, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("set"); err != nil {
+	if err := p.lexer.EatKeyword("set"); err != nil {
 		return nil, err
 	}
 	field, err := p.Field()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('='); err != nil {
+	if err := p.lexer.EatDelim('='); err != nil {
 		return nil, err
 	}
 	expr, err := p.Expression()
@@ -327,8 +323,8 @@ func (p *Parser) Modify() (*ModifyData, error) {
 		return nil, err
 	}
 	pred := &query.PredicateImpl{}
-	if p.lex.MatchKeyword("where") {
-		if err := p.lex.EatKeyword("where"); err != nil {
+	if p.lexer.MatchKeyword("where") {
+		if err := p.lexer.EatKeyword("where"); err != nil {
 			return nil, err
 		}
 		pred, err = p.Predicate()
@@ -341,21 +337,21 @@ func (p *Parser) Modify() (*ModifyData, error) {
 
 // CreateTable parses and returns a create table data.
 func (p *Parser) CreateTable() (*CreateTableData, error) {
-	if err := p.lex.EatKeyword("table"); err != nil {
+	if err := p.lexer.EatKeyword("table"); err != nil {
 		return nil, err
 	}
-	table, err := p.lex.EatId()
+	table, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('('); err != nil {
+	if err := p.lexer.EatDelim('('); err != nil {
 		return nil, err
 	}
 	sch, err := p.fieldDefs()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim(')'); err != nil {
+	if err := p.lexer.EatDelim(')'); err != nil {
 		return nil, err
 	}
 	return NewCreateTableData(table, sch), nil
@@ -366,8 +362,8 @@ func (p *Parser) fieldDefs() (record.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.lex.MatchDelim(',') {
-		if err := p.lex.EatDelim(','); err != nil {
+	if p.lexer.MatchDelim(',') {
+		if err := p.lexer.EatDelim(','); err != nil {
 			return nil, err
 		}
 		schema2, err := p.fieldDefs()
@@ -391,25 +387,25 @@ func (p *Parser) fieldDef() (record.Schema, error) {
 
 func (p *Parser) fieldType(field string) (record.Schema, error) {
 	schema := record.NewSchema()
-	if p.lex.MatchKeyword("int") {
-		if err := p.lex.EatKeyword("int"); err != nil {
+	if p.lexer.MatchKeyword("int") {
+		if err := p.lexer.EatKeyword("int"); err != nil {
 			return nil, err
 		}
 		schema.AddIntField(field)
 		return schema, nil
 	}
-	if p.lex.MatchKeyword("varchar") {
-		if err := p.lex.EatKeyword("varchar"); err != nil {
+	if p.lexer.MatchKeyword("varchar") {
+		if err := p.lexer.EatKeyword("varchar"); err != nil {
 			return nil, err
 		}
-		if err := p.lex.EatDelim('('); err != nil {
+		if err := p.lexer.EatDelim('('); err != nil {
 			return nil, err
 		}
-		strLen, err := p.lex.EatIntConstant()
+		strLen, err := p.lexer.EatIntConstant()
 		if err != nil {
 			return nil, err
 		}
-		if err := p.lex.EatDelim(')'); err != nil {
+		if err := p.lexer.EatDelim(')'); err != nil {
 			return nil, err
 		}
 		schema.AddStringField(field, strLen)
@@ -419,14 +415,14 @@ func (p *Parser) fieldType(field string) (record.Schema, error) {
 
 // CreateView parses and returns a create view data.
 func (p *Parser) CreateView() (*CreateViewData, error) {
-	if err := p.lex.EatKeyword("view"); err != nil {
+	if err := p.lexer.EatKeyword("view"); err != nil {
 		return nil, err
 	}
-	viewname, err := p.lex.EatId()
+	viewname, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("as"); err != nil {
+	if err := p.lexer.EatKeyword("as"); err != nil {
 		return nil, err
 	}
 	qd, err := p.Query()
@@ -438,28 +434,28 @@ func (p *Parser) CreateView() (*CreateViewData, error) {
 
 // CreateIndex parses and returns a create index data.
 func (p *Parser) CreateIndex() (*CreateIndexData, error) {
-	if err := p.lex.EatKeyword("index"); err != nil {
+	if err := p.lexer.EatKeyword("index"); err != nil {
 		return nil, err
 	}
-	idx, err := p.lex.EatId()
+	idx, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatKeyword("on"); err != nil {
+	if err := p.lexer.EatKeyword("on"); err != nil {
 		return nil, err
 	}
-	table, err := p.lex.EatId()
+	table, err := p.lexer.EatId()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim('('); err != nil {
+	if err := p.lexer.EatDelim('('); err != nil {
 		return nil, err
 	}
 	field, err := p.Field()
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lex.EatDelim(')'); err != nil {
+	if err := p.lexer.EatDelim(')'); err != nil {
 		return nil, err
 	}
 	return NewCreateIndexData(idx, table, field), nil

@@ -3,71 +3,55 @@ package transaction
 import (
 	"testing"
 
-	fmock "github.com/kj455/db/pkg/file/mock"
-	lmock "github.com/kj455/db/pkg/log/mock"
+	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/db/pkg/log"
+	"github.com/kj455/db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestNewRollbackRecord(t *testing.T) {
+	t.Parallel()
 	const txNum = 1
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	page := fmock.NewMockPage(ctrl)
-	page.EXPECT().GetInt(OpSize).Return(uint32(txNum))
+	page := file.NewPage(8)
+	page.SetInt(OffsetOp, uint32(OP_ROLLBACK))
+	page.SetInt(OffsetTxNum, uint32(txNum))
 
 	record := NewRollbackRecord(page)
 
-	assert.Equal(t, ROLLBACK, record.Op())
+	assert.Equal(t, OP_ROLLBACK, record.Op())
 	assert.Equal(t, txNum, record.TxNum())
-}
-
-func TestRollbackRecordOp(t *testing.T) {
-	record := RollbackRecord{}
-	assert.Equal(t, ROLLBACK, record.Op())
-}
-
-func TestRollbackRecordTxNum(t *testing.T) {
-	const txNum = 1
-	record := RollbackRecord{
-		txNum: txNum,
-	}
-	assert.Equal(t, txNum, record.TxNum())
-}
-
-func TestRollbackRecordUndo(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	const txNum = 1
-	record := RollbackRecord{
-		txNum: txNum,
-	}
-	record.Undo(nil)
-}
-
-func TestRollbackRecordString(t *testing.T) {
-	const txNum = 1
-	record := RollbackRecord{
-		txNum: txNum,
-	}
+	assert.NoError(t, record.Undo(nil))
 	assert.Equal(t, "<ROLLBACK 1>", record.String())
 }
 
 func TestWriteRollbackRecordToLog(t *testing.T) {
 	const (
-		txNum = 1
-		lsn   = 2
+		txNum     = 1
+		blockSize = 400
+		fileName  = "test_write_rollback_record_to_log"
 	)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	lm := lmock.NewMockLogMgr(ctrl)
-	lm.EXPECT().Append([]byte{
-		0, 0, 0, 3, // ROLLBACK
-		0, 0, 0, 1, // txNum
-	}).Return(lsn, nil)
+	dir, _, cleanup := testutil.SetupFile(fileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	lm, err := log.NewLogMgr(fileMgr, fileName)
+	assert.NoError(t, err)
 
-	got, err := WriteRollbackRecordToLog(lm, txNum)
+	lsn, err := WriteRollbackRecordToLog(lm, txNum)
 
 	assert.NoError(t, err)
-	assert.Equal(t, lsn, got)
+	assert.Equal(t, 1, lsn)
+
+	iter, err := lm.Iterator()
+
+	assert.NoError(t, err)
+	assert.True(t, iter.HasNext())
+
+	record, err := iter.Next()
+
+	assert.NoError(t, err)
+
+	page := file.NewPageFromBytes(record)
+
+	assert.Equal(t, OP_ROLLBACK, Op(page.GetInt(OffsetOp)))
+	assert.Equal(t, txNum, int(page.GetInt(OffsetTxNum)))
 }

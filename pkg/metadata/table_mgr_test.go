@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/kj455/db/pkg/buffer"
@@ -11,52 +10,60 @@ import (
 	"github.com/kj455/db/pkg/record"
 	"github.com/kj455/db/pkg/testutil"
 	"github.com/kj455/db/pkg/tx/transaction"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTableMgr(t *testing.T) {
-	rootDir := testutil.ProjectRootDir()
-	dir := rootDir + "/.tmp"
-	fm := file.NewFileMgr(dir, 400)
-	lm, err := log.NewLogMgr(fm, "testlogfile")
-	require.NoError(t, err)
-	buffs := make([]buffer.Buffer, 2)
-	for i := range buffs {
-		buffs[i] = buffer.NewBuffer(fm, lm, 400)
-	}
-	bm := buffermgr.NewBufferMgr(buffs)
-	require.NoError(t, err)
+	const (
+		logFileName = "test_table_mgr_log"
+		blockSize   = 400
+		tableName   = "test_table_mgr_table"
+	)
+	dir, _, cleanup := testutil.SetupFile(logFileName)
+	defer cleanup()
+	fileMgr := file.NewFileMgr(dir, blockSize)
+	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
+	assert.NoError(t, err)
+	buff1 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	buff2 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	buff3 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
+	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buff1, buff2, buff3})
 	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
-	require.NoError(t, err)
-	tm, err := NewTableMgr(true, tx)
-	require.NoError(t, err)
+	tx, err := transaction.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
+	assert.NoError(t, err)
 
+	tblMgr, err := NewTableMgr(tx)
+	assert.NoError(t, err)
+	defer func() {
+		err := tblMgr.DropTable(tableTableCatalog, tx)
+		assert.NoError(t, err)
+		err = tblMgr.DropTable(tableFieldCatalog, tx)
+		assert.NoError(t, err)
+	}()
+
+	// Create a table
 	sch := record.NewSchema()
 	sch.AddIntField("A")
-	sch.AddStringField("B", 9)
-	tm.CreateTable("MyTable", sch, tx)
+	sch.AddStringField("B", 10)
+	err = tblMgr.CreateTable(tableName, sch, tx)
+	// Drop the table
+	defer func() {
+		err = tblMgr.DropTable(tableName, tx)
+		assert.NoError(t, err)
+	}()
+	assert.NoError(t, err)
 
-	layout, err := tm.GetLayout("MyTable", tx)
-	require.NoError(t, err)
-	size := layout.SlotSize()
-	sch2 := layout.Schema()
+	// Check the table's layout
+	layout, err := tblMgr.GetLayout(tableName, tx)
+	assert.NoError(t, err)
 
-	t.Logf("MyTable has slot size %d\n", size)
-	t.Logf("Its fields are:\n")
+	fields := layout.Schema().Fields()
+	assert.Equal(t, 2, len(fields))
+	assert.Equal(t, "A", fields[0])
+	assert.Equal(t, "B", fields[1])
+	l, err := layout.Schema().Length("B")
+	assert.NoError(t, err)
+	assert.Equal(t, 10, l)
 
-	for _, fldname := range sch2.Fields() {
-		var typeStr string
-		sch2Type, err := sch2.Type(fldname)
-		require.NoError(t, err)
-		if sch2Type == record.SCHEMA_TYPE_INTEGER {
-			typeStr = "int"
-		} else {
-			strlen, err := sch2.Length(fldname)
-			require.NoError(t, err)
-			typeStr = fmt.Sprintf("varchar(%d)", strlen)
-		}
-		t.Logf("%s: %s\n", fldname, typeStr)
-	}
 	tx.Commit()
 }

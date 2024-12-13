@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"errors"
+
 	"github.com/kj455/db/pkg/file"
 	"github.com/kj455/db/pkg/tx"
 )
@@ -8,15 +10,18 @@ import (
 type Op int
 
 const (
-	CHECKPOINT Op = iota
-	START
-	COMMIT
-	ROLLBACK
-	SET_INT
-	SET_STRING
+	OP_CHECKPOINT Op = iota + 1
+	OP_START
+	OP_COMMIT
+	OP_ROLLBACK
+	OP_SET_INT
+	OP_SET_STRING
 )
 
-const OpSize = 4
+const (
+	OffsetOp    = 0
+	OffsetTxNum = 4
+)
 
 type LogRecord interface {
 	Op() Op
@@ -24,23 +29,23 @@ type LogRecord interface {
 	Undo(tx tx.Transaction) error
 }
 
-func NewLogRecord(bytes []byte) LogRecord {
+func NewLogRecord(bytes []byte) (LogRecord, error) {
 	p := file.NewPageFromBytes(bytes)
-	op := Op(p.GetInt(0))
+	op := Op(p.GetInt(OffsetOp))
 	switch op {
-	case CHECKPOINT:
-		return NewCheckpointRecord()
-	case START:
-		return NewStartRecord(p)
-	case COMMIT:
-		return NewCommitRecord(p)
-	case ROLLBACK:
-		return NewRollbackRecord(p)
-	case SET_INT:
-		return NewSetIntRecord(p)
-	case SET_STRING:
-		return NewSetStringRecord(p)
+	case OP_CHECKPOINT:
+		return NewCheckpointRecord(), nil
+	case OP_START:
+		return NewStartRecord(p), nil
+	case OP_COMMIT:
+		return NewCommitRecord(p), nil
+	case OP_ROLLBACK:
+		return NewRollbackRecord(p), nil
+	case OP_SET_INT:
+		return NewSetIntRecord(p), nil
+	case OP_SET_STRING:
+		return NewSetStringRecord(p), nil
 	default:
-		return nil
+		return nil, errors.New("transaction: unknown record type")
 	}
 }

@@ -14,6 +14,15 @@ type BufferListImpl struct {
 	bm      buffermgr.BufferMgr
 }
 
+/*
+BufferList manages the list of currently pinned buffers for a transaction.
+A BufferList object needs to know two things:
+  - which buffer is assigned to a specified block
+  - how many times each block is pinned
+
+The code uses a map to determine buffers and a list to determine pin counts.
+The list contains a BlockId object as many times as it is pinned; each time the block is unpinned, one instance is removed from the list.
+*/
 func NewBufferList(bm buffermgr.BufferMgr) *BufferListImpl {
 	return &BufferListImpl{
 		buffers: make(map[file.BlockId]buffer.Buffer),
@@ -46,8 +55,8 @@ func (bl *BufferListImpl) Unpin(block file.BlockId) {
 		return
 	}
 	bl.bm.Unpin(buff)
-	bl.removeBlockFromPins(block)
-	if !bl.containsBlockInPins(block) {
+	bl.unpinBlock(block)
+	if !bl.hasPinnedBlock(block) {
 		delete(bl.buffers, block)
 	}
 }
@@ -65,7 +74,7 @@ func (bl *BufferListImpl) UnpinAll() {
 	bl.pins = make([]file.BlockId, 0)
 }
 
-func (bl *BufferListImpl) containsBlockInPins(block file.BlockId) bool {
+func (bl *BufferListImpl) hasPinnedBlock(block file.BlockId) bool {
 	for _, b := range bl.pins {
 		if b.Equals(block) {
 			return true
@@ -74,7 +83,7 @@ func (bl *BufferListImpl) containsBlockInPins(block file.BlockId) bool {
 	return false
 }
 
-func (bl *BufferListImpl) removeBlockFromPins(block file.BlockId) {
+func (bl *BufferListImpl) unpinBlock(block file.BlockId) {
 	for i, b := range bl.pins {
 		if b.Equals(block) {
 			before, after := bl.pins[:i], bl.pins[i+1:]

@@ -45,7 +45,7 @@ func TestParser_String(t *testing.T) {
 			t.Parallel()
 			s := "create table tests(foo int, bar varchar(255))"
 			p := NewParser(s)
-			p.lex.EatKeyword("create")
+			p.lexer.EatKeyword("create")
 			data, err := p.CreateTable()
 			assert.NoError(t, err)
 			assert.Equal(t, s, data.String())
@@ -54,7 +54,7 @@ func TestParser_String(t *testing.T) {
 			t.Parallel()
 			s := "create view tests as select * from tests"
 			p := NewParser(s)
-			p.lex.EatKeyword("create")
+			p.lexer.EatKeyword("create")
 			data, err := p.CreateView()
 			assert.NoError(t, err)
 			assert.Equal(t, s, data.String())
@@ -63,7 +63,7 @@ func TestParser_String(t *testing.T) {
 			t.Parallel()
 			s := "create index idx on tests(foo)"
 			p := NewParser(s)
-			p.lex.EatKeyword("create")
+			p.lexer.EatKeyword("create")
 			data, err := p.CreateIndex()
 			assert.NoError(t, err)
 			assert.Equal(t, s, data.String())
