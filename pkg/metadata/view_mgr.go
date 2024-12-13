@@ -16,6 +16,10 @@ const (
 	MAX_VIEW_DEF = 100
 )
 
+var (
+	ErrViewNotFound = fmt.Errorf("metadata: view not found")
+)
+
 type ViewMgrImpl struct {
 	tableMgr TableMgr
 }
@@ -69,15 +73,12 @@ func (vm *ViewMgrImpl) GetViewDef(vname string, tx tx.Transaction) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("metadata: failed to get view catalog layout: %w", err)
 	}
-	fmt.Println("layout", layout)
 	ts, err := record.NewTableScan(tx, tableViewCatalog, layout)
-	fmt.Println("ts", ts)
 	if err != nil {
 		return "", fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
 	defer ts.Close()
 	for ts.Next() {
-		fmt.Println("ts.Next()")
 		name, err := ts.GetString(fieldViewName)
 		if err != nil {
 			return "", fmt.Errorf("metadata: failed to get view name: %w", err)
@@ -90,6 +91,9 @@ func (vm *ViewMgrImpl) GetViewDef(vname string, tx tx.Transaction) (string, erro
 			return "", fmt.Errorf("metadata: failed to get view def: %w", err)
 		}
 		break
+	}
+	if result == "" {
+		return "", ErrViewNotFound
 	}
 	return result, nil
 }

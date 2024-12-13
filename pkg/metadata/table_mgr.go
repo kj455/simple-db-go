@@ -191,7 +191,9 @@ func (tm *TableMgrImpl) DropTable(tblname string, tx tx.Transaction) error {
 		if name != tblname {
 			continue
 		}
-		tcat.Delete()
+		if err := tcat.Delete(); err != nil {
+			return fmt.Errorf("metadata: failed to delete from table scan: %w", err)
+		}
 		break
 	}
 	tcat.Close()
@@ -209,7 +211,9 @@ func (tm *TableMgrImpl) DropTable(tblname string, tx tx.Transaction) error {
 		if name != tblname {
 			continue
 		}
-		fcat.Delete()
+		if err := fcat.Delete(); err != nil {
+			return fmt.Errorf("metadata: failed to delete from table scan: %w", err)
+		}
 	}
 	return nil
 }
