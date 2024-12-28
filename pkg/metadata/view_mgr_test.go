@@ -19,7 +19,7 @@ func TestViewMgr(t *testing.T) {
 		blockSize   = 1024
 	)
 	dir, _, cleanup := testutil.SetupFile(logFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)

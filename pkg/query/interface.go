@@ -47,6 +47,8 @@ type UpdatableScan interface {
 type Predicate interface {
 	IsSatisfied(s Scan) (bool, error)
 	String() string
+	FindFieldEquivalence(field string) (string, bool)
+	FindConstantEquivalence(field string) (*constant.Const, bool)
 }
 
 type Expression interface {

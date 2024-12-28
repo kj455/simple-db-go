@@ -12,8 +12,8 @@ type MetadataMgrImpl struct {
 	idxMgr   IndexMgr
 }
 
-func NewMetadataMgr(tx tx.Transaction) (MetadataMgr, error) {
-	tm, err := NewTableMgr(tx)
+func NewMetadataMgr(tx tx.Transaction, opts ...TableMgrOption) (MetadataMgr, error) {
+	tm, err := NewTableMgr(tx, opts...)
 	if err != nil {
 		return nil, err
 	}

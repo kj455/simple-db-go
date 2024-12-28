@@ -15,7 +15,7 @@ func TestNewLogIterator(t *testing.T) {
 		blockSize = 8
 	)
 	dir, _, cleanup := testutil.SetupFile(fileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	writePage := file.NewPage(blockSize)
 	writePage.SetInt(0, blockSize)
@@ -36,7 +36,7 @@ func TestLogIterator_HasNext(t *testing.T) {
 			filename  = "test_log_iterator_has_next"
 		)
 		dir, _, cleanup := testutil.SetupFile(filename)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 0)
 
@@ -55,7 +55,7 @@ func TestLogIterator_HasNext(t *testing.T) {
 			filename  = "test_log_iterator_has_next"
 		)
 		dir, _, cleanup := testutil.SetupFile(filename)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 1)
 
@@ -76,7 +76,7 @@ func TestLogIterator_Next(t *testing.T) {
 			filename  = "test_log_iterator_next_not_finished"
 		)
 		dir, _, cleanup := testutil.SetupFile(filename)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 0)
 		page := file.NewPage(blockSize)
@@ -102,7 +102,7 @@ func TestLogIterator_Next(t *testing.T) {
 			filename  = "test_log_iterator_next_block_finished"
 		)
 		dir, _, cleanup := testutil.SetupFile(filename)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block0 := file.NewBlockId(filename, 0)
 		page0 := file.NewPage(blockSize)

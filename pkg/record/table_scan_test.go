@@ -21,7 +21,7 @@ func TestTableScan(t *testing.T) {
 		logTestFileName = "test_table_scan_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, logCleanup := testutil.SetupFile(logTestFileName)
 	defer logCleanup()
 

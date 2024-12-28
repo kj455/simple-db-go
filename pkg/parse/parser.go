@@ -166,7 +166,7 @@ func (p *Parser) tableList() ([]string, error) {
 }
 
 // UpdateCmd parses and returns an update command.
-func (p *Parser) UpdateCmd() (any, error) {
+func (p *Parser) UpdateCmd() (Data, error) {
 	if p.lexer.MatchKeyword("insert") {
 		return p.Insert()
 	}
@@ -182,7 +182,7 @@ func (p *Parser) UpdateCmd() (any, error) {
 	return nil, fmt.Errorf("parse: invalid command")
 }
 
-func (p *Parser) create() (any, error) {
+func (p *Parser) create() (Data, error) {
 	if err := p.lexer.EatKeyword("create"); err != nil {
 		return nil, err
 	}

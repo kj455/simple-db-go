@@ -73,7 +73,7 @@ func TestWriteSetStringRecordToLog(t *testing.T) {
 		blockSize    = 400
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	lm, err := log.NewLogMgr(fileMgr, testFileName)
 	assert.NoError(t, err)

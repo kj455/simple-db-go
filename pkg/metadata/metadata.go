@@ -9,6 +9,8 @@ type TableMgr interface {
 	CreateTable(table string, schema record.Schema, tx tx.Transaction) error
 	GetLayout(table string, tx tx.Transaction) (record.Layout, error)
 	HasTable(table string, tx tx.Transaction) (bool, error)
+	TableCatalog() string
+	FieldCatalog() string
 }
 
 type ViewMgr interface {

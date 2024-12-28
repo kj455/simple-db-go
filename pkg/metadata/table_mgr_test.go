@@ -20,7 +20,7 @@ func TestTableMgr(t *testing.T) {
 		tableName   = "test_table_mgr_table"
 	)
 	dir, _, cleanup := testutil.SetupFile(logFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)
@@ -35,9 +35,9 @@ func TestTableMgr(t *testing.T) {
 	tblMgr, err := NewTableMgr(tx)
 	assert.NoError(t, err)
 	defer func() {
-		err := tblMgr.DropTable(tableTableCatalog, tx)
+		err := tblMgr.DropTable(tblMgr.tableCatalog, tx)
 		assert.NoError(t, err)
-		err = tblMgr.DropTable(tableFieldCatalog, tx)
+		err = tblMgr.DropTable(tblMgr.fieldCatalog, tx)
 		assert.NoError(t, err)
 	}()
 

@@ -20,7 +20,7 @@ func TestBufferMgr_Pin(t *testing.T) {
 			logFileName = "test_buffer_mgr_pin_no_buffer_assigned"
 		)
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -45,7 +45,7 @@ func TestBufferMgr_Pin(t *testing.T) {
 			buffNum     = 1
 		)
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -73,7 +73,7 @@ func TestBufferMgr_Pin(t *testing.T) {
 			buffNum     = 1
 		)
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -103,7 +103,7 @@ func TestBufferMgrImpl_Unpin(t *testing.T) {
 			logFileName = "test_buffer_mgr_unpin_available_increment"
 		)
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -137,7 +137,7 @@ func TestBufferMgrImpl_FlushAll(t *testing.T) {
 			txNum       = 1
 		)
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)

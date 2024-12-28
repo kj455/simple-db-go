@@ -27,7 +27,7 @@ func TestWriteCheckpointRecordToLog(t *testing.T) {
 		fileName  = "test_write_checkpoint_record_to_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(fileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	lm, err := log.NewLogMgr(fileMgr, fileName)
 	assert.NoError(t, err)
