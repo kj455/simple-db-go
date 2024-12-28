@@ -16,7 +16,7 @@ func TestNewLogMgr(t *testing.T) {
 			blockSize    = 4096
 		)
 		dir, _, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 
 		lm, err := NewLogMgr(fileMgr, testFileName)
@@ -33,7 +33,7 @@ func TestNewLogMgr(t *testing.T) {
 			blockSize    = 5
 		)
 		dir, f, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		record := []byte("hello world!!")
 		_, err := f.Write(record)
 		f.Close()
@@ -58,7 +58,7 @@ func TestLogMgr_Append(t *testing.T) {
 			blockIdx     = 0
 		)
 		dir, _, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		page := file.NewPage(blockSize)
 		page.SetInt(0, blockSize)
 		fileMgr := file.NewFileMgr(dir, blockSize)
@@ -82,7 +82,7 @@ func TestLogMgr_Append(t *testing.T) {
 			blockIdx     = 0
 		)
 		dir, _, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		page := file.NewPage(blockSize)
 		page.SetInt(0, blockSize)
 		fileMgr := file.NewFileMgr(dir, blockSize)
@@ -110,7 +110,7 @@ func TestLogMgr_Flush(t *testing.T) {
 			blockSize    = 10
 		)
 		dir, _, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		lm, err := NewLogMgr(fileMgr, testFileName)
 		assert.NoError(t, err)
@@ -131,7 +131,7 @@ func TestLogMgr_Flush(t *testing.T) {
 			blockSize    = 10
 		)
 		dir, _, cleanup := testutil.SetupFile(testFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		lm, err := NewLogMgr(fileMgr, testFileName)
 		assert.NoError(t, err)

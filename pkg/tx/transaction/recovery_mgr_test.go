@@ -19,7 +19,7 @@ func TestRecoveryMgr_Rollback(t *testing.T) {
 		testFileName = "test_recovery_mgr_rollback"
 	)
 	_, logMgr, buf, _, tx, cleanup := setupRecoveryMgrTest(t, testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	recoveryMgr := tx.recoveryMgr
 
 	recoveryMgr.SetInt(buf, 100, 1)
@@ -51,7 +51,7 @@ func TestRecoveryMgr_Recover(t *testing.T) {
 		testFileName = "test_recovery_mgr_recover"
 	)
 	_, logMgr, buf, _, tx, cleanup := setupRecoveryMgrTest(t, testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	recoveryMgr := tx.recoveryMgr
 
 	recoveryMgr.SetInt(buf, 100, 1)

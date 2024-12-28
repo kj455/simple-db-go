@@ -18,7 +18,7 @@ func TestBufferList(t *testing.T) {
 		testFileName = "test_buffer_list"
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, testFileName)
 	assert.NoError(t, err)

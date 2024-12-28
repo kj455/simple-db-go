@@ -22,7 +22,7 @@ func TestTransaction(t *testing.T) {
 		blockSize   = 400
 	)
 	dir, _, cleanup := testutil.SetupFile(filename)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, cleanupLog := testutil.SetupFile(logFilename)
 	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)
@@ -89,7 +89,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 		testLogFileName = "test_transaction_concurrency_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, cleanupLog := testutil.SetupFile(testLogFileName)
 	defer cleanupLog()
 	fm := file.NewFileMgr(dir, blockSize)
@@ -188,7 +188,7 @@ func TestTransaction_Size(t *testing.T) {
 		logFileName = "test_transaction_size_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(fileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, cleanupLog := testutil.SetupFile(logFileName)
 	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)
@@ -226,7 +226,7 @@ func TestTransaction_Append(t *testing.T) {
 		logFileName = "test_transaction_append_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(fileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, cleanupLog := testutil.SetupFile(logFileName)
 	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)

@@ -20,7 +20,7 @@ func TestRecordPage(t *testing.T) {
 		logTestFileName = "test_record_page_log"
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	_, _, logCleanup := testutil.SetupFile(logTestFileName)
 	defer logCleanup()
 

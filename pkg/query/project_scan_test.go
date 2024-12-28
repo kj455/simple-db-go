@@ -21,7 +21,7 @@ func TestProjectScan(t *testing.T) {
 		tableName    = "table_test_project_scan"
 	)
 	dir, _, cleanup := testutil.SetupFile(testFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, testFileName)
 	buffs := make([]buffer.Buffer, 2)

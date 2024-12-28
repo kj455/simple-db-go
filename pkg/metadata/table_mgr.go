@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	tableFieldCatalog = "fldcat"
-	tableTableCatalog = "tblcat"
+	defaultTableFieldCatalog = "fldcat"
+	defaultTableTableCatalog = "tblcat"
 
 	fieldTableName = "tblname"
 	fieldSlotSize  = "slotsize"
@@ -21,17 +21,39 @@ const (
 )
 
 type TableMgrImpl struct {
+	tableCatalog string
+	fieldCatalog string
 	tblCatLayout record.Layout
 	fldCatLayout record.Layout
 	mu           sync.Mutex
+}
+
+type TableMgrOption func(*TableMgrImpl)
+
+func WithTableTableCatalog(name string) TableMgrOption {
+	return func(tm *TableMgrImpl) {
+		tm.tableCatalog = name
+	}
+}
+
+func WithTableFieldCatalog(name string) TableMgrOption {
+	return func(tm *TableMgrImpl) {
+		tm.fieldCatalog = name
+	}
 }
 
 // MaxName is the maximum character length a tablename or fieldname can have.
 const MAX_NAME_LENGTH = 16
 
 // NewTableMgr creates a new catalog manager for the database system.
-func NewTableMgr(tx tx.Transaction) (*TableMgrImpl, error) {
-	tm := &TableMgrImpl{}
+func NewTableMgr(tx tx.Transaction, opts ...TableMgrOption) (*TableMgrImpl, error) {
+	tm := &TableMgrImpl{
+		tableCatalog: defaultTableTableCatalog,
+		fieldCatalog: defaultTableFieldCatalog,
+	}
+	for _, opt := range opts {
+		opt(tm)
+	}
 
 	var err error
 
@@ -47,10 +69,10 @@ func NewTableMgr(tx tx.Transaction) (*TableMgrImpl, error) {
 		return nil, fmt.Errorf("metadata: failed to create field catalog layout from schema: %w", err)
 	}
 
-	if err := tm.CreateTable(tableTableCatalog, tblCatSchema, tx); err != nil {
+	if err := tm.CreateTable(tm.tableCatalog, tblCatSchema, tx); err != nil {
 		return nil, err
 	}
-	if err := tm.CreateTable(tableFieldCatalog, fldCatSchema, tx); err != nil {
+	if err := tm.CreateTable(defaultTableFieldCatalog, fldCatSchema, tx); err != nil {
 		return nil, err
 	}
 	return tm, nil
@@ -100,7 +122,7 @@ func (tm *TableMgrImpl) CreateTable(tblname string, sch record.Schema, tx tx.Tra
 }
 
 func (tm *TableMgrImpl) HasTable(tblname string, tx tx.Transaction) (bool, error) {
-	tcat, err := record.NewTableScan(tx, tableTableCatalog, tm.tblCatLayout)
+	tcat, err := record.NewTableScan(tx, tm.tableCatalog, tm.tblCatLayout)
 	if err != nil {
 		return false, fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -118,7 +140,7 @@ func (tm *TableMgrImpl) HasTable(tblname string, tx tx.Transaction) (bool, error
 }
 
 func (tm *TableMgrImpl) addToTableCatalog(tblname string, slotSize int, tx tx.Transaction) error {
-	tcat, err := record.NewTableScan(tx, tableTableCatalog, tm.tblCatLayout)
+	tcat, err := record.NewTableScan(tx, tm.tableCatalog, tm.tblCatLayout)
 	if err != nil {
 		return fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -140,7 +162,7 @@ func (tm *TableMgrImpl) addToFieldCatalog(tblname string, schema record.Schema, 
 	if err != nil {
 		return fmt.Errorf("metadata: failed to create layout from schema: %w", err)
 	}
-	fcat, err := record.NewTableScan(tx, tableFieldCatalog, tm.fldCatLayout)
+	fcat, err := record.NewTableScan(tx, tm.fieldCatalog, tm.fldCatLayout)
 	if err != nil {
 		return fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -179,7 +201,7 @@ func (tm *TableMgrImpl) addToFieldCatalog(tblname string, schema record.Schema, 
 func (tm *TableMgrImpl) DropTable(tblname string, tx tx.Transaction) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	tcat, err := record.NewTableScan(tx, tableTableCatalog, tm.tblCatLayout)
+	tcat, err := record.NewTableScan(tx, tm.tableCatalog, tm.tblCatLayout)
 	if err != nil {
 		return fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -198,7 +220,7 @@ func (tm *TableMgrImpl) DropTable(tblname string, tx tx.Transaction) error {
 	}
 	tcat.Close()
 
-	fcat, err := record.NewTableScan(tx, tableFieldCatalog, tm.fldCatLayout)
+	fcat, err := record.NewTableScan(tx, tm.fieldCatalog, tm.fldCatLayout)
 	if err != nil {
 		return fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -233,7 +255,7 @@ func (tm *TableMgrImpl) GetLayout(tblname string, tx tx.Transaction) (record.Lay
 }
 
 func (tm *TableMgrImpl) getTableSlotSize(tblname string, tx tx.Transaction) (int, error) {
-	tcat, err := record.NewTableScan(tx, tableTableCatalog, tm.tblCatLayout)
+	tcat, err := record.NewTableScan(tx, tm.tableCatalog, tm.tblCatLayout)
 	if err != nil {
 		return 0, fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -254,7 +276,7 @@ func (tm *TableMgrImpl) getTableSlotSize(tblname string, tx tx.Transaction) (int
 func (tm *TableMgrImpl) getTableSchemaOffset(tblName string, tx tx.Transaction) (record.Schema, map[string]int, error) {
 	sch := record.NewSchema()
 	offsets := make(map[string]int)
-	fcat, err := record.NewTableScan(tx, tableFieldCatalog, tm.fldCatLayout)
+	fcat, err := record.NewTableScan(tx, defaultTableFieldCatalog, tm.fldCatLayout)
 	if err != nil {
 		return nil, nil, fmt.Errorf("metadata: failed to create table scan: %w", err)
 	}
@@ -287,4 +309,12 @@ func (tm *TableMgrImpl) getTableSchemaOffset(tblName string, tx tx.Transaction) 
 		sch.AddField(fldname, record.SchemaType(fldtype), fldlen)
 	}
 	return sch, offsets, nil
+}
+
+func (tm *TableMgrImpl) TableCatalog() string {
+	return tm.tableCatalog
+}
+
+func (tm *TableMgrImpl) FieldCatalog() string {
+	return tm.fieldCatalog
 }

@@ -61,11 +61,11 @@ func (sm *StatMgrImpl) refreshStatistics(tx tx.Transaction) error {
 	sm.tableStats = make(map[string]StatInfo, INIT_STAT_CAP)
 	sm.numCalls = 0
 
-	tableCatLayout, err := sm.tableMgr.GetLayout(tableTableCatalog, tx)
+	tableCatLayout, err := sm.tableMgr.GetLayout(sm.tableMgr.TableCatalog(), tx)
 	if err != nil {
 		return err
 	}
-	tcat, err := record.NewTableScan(tx, tableTableCatalog, tableCatLayout)
+	tcat, err := record.NewTableScan(tx, sm.tableMgr.TableCatalog(), tableCatLayout)
 	if err != nil {
 		return err
 	}

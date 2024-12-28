@@ -9,6 +9,10 @@ import (
 	"github.com/kj455/db/pkg/record"
 )
 
+type Data interface {
+	String() string
+}
+
 // QueryData holds data for the SQL select statement.
 type QueryData struct {
 	Fields []string

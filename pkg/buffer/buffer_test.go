@@ -17,7 +17,7 @@ func TestBuffer_WriteContents(t *testing.T) {
 		lsn         = 2
 	)
 	dir, _, cleanup := testutil.SetupFile(logFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)
@@ -43,7 +43,7 @@ func TestBuffer_Flush(t *testing.T) {
 		t.Parallel()
 		const logFileName = "test_buffer_flush_skip"
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -58,7 +58,7 @@ func TestBuffer_Flush(t *testing.T) {
 		t.Parallel()
 		const logFileName = "test_buffer_flush"
 		dir, _, cleanup := testutil.SetupFile(logFileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
@@ -92,7 +92,7 @@ func TestBuffer_AssignToBlock(t *testing.T) {
 		logFileName = "test_buffer_assign_to_block"
 	)
 	dir, _, cleanup := testutil.SetupFile(logFileName)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)

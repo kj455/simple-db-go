@@ -54,7 +54,7 @@ func TestFileMgr_Read(t *testing.T) {
 		t.Parallel()
 		const fileName = "read_test"
 		f, cleanup := setupFile(fileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		bytes := []byte("hello world!!!!")
 		_, err := f.Write(bytes)
 		assert.NoError(t, err)
@@ -73,7 +73,7 @@ func TestFileMgr_Read(t *testing.T) {
 			blockSize = 4096
 		)
 		_, cleanup := setupFile(fileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 		page := NewPage(blockSize)
 		page.SetString(0, "hello world!!!!")
 		id := NewBlockId(fileName, 0)
@@ -89,7 +89,7 @@ func TestFileMgr_Read(t *testing.T) {
 		t.Parallel()
 		const fileName = "append_test"
 		_, cleanup := setupFile(fileName)
-		defer cleanup()
+		t.Cleanup(cleanup)
 
 		id, err := mgr.Append(fileName)
 
