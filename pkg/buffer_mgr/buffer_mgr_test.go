@@ -3,10 +3,10 @@ package buffermgr
 import (
 	"testing"
 
-	"github.com/kj455/db/pkg/buffer"
-	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/testutil"
+	"github.com/kj455/simple-db/pkg/buffer"
+	"github.com/kj455/simple-db/pkg/file"
+	"github.com/kj455/simple-db/pkg/log"
+	"github.com/kj455/simple-db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

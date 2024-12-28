@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kj455/db/pkg/file"
-	ttime "github.com/kj455/db/pkg/time"
+	"github.com/kj455/simple-db/pkg/file"
+	ttime "github.com/kj455/simple-db/pkg/time"
 )
 
 const (

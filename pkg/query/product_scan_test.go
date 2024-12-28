@@ -3,14 +3,14 @@ package query
 import (
 	"testing"
 
-	"github.com/kj455/db/pkg/buffer"
-	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
-	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/metadata"
-	"github.com/kj455/db/pkg/record"
-	"github.com/kj455/db/pkg/testutil"
-	"github.com/kj455/db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/buffer"
+	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
+	"github.com/kj455/simple-db/pkg/file"
+	"github.com/kj455/simple-db/pkg/log"
+	"github.com/kj455/simple-db/pkg/metadata"
+	"github.com/kj455/simple-db/pkg/record"
+	"github.com/kj455/simple-db/pkg/testutil"
+	"github.com/kj455/simple-db/pkg/tx/transaction"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/simple-db/pkg/file"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	tmock "github.com/kj455/db/pkg/time/mock"
+	tmock "github.com/kj455/simple-db/pkg/time/mock"
 )
 
 type mocks struct {

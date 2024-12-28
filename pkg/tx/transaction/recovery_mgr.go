@@ -3,10 +3,10 @@ package transaction
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/buffer"
-	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
-	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/buffer"
+	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
+	"github.com/kj455/simple-db/pkg/log"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type RecoveryMgrImpl struct {

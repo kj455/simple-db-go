@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kj455/db/pkg/constant"
-	"github.com/kj455/db/pkg/query"
-	"github.com/kj455/db/pkg/record"
+	"github.com/kj455/simple-db/pkg/constant"
+	"github.com/kj455/simple-db/pkg/query"
+	"github.com/kj455/simple-db/pkg/record"
 )
 
 type Data interface {

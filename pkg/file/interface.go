@@ -28,4 +28,5 @@ type FileMgr interface {
 	Append(filename string) (BlockId, error)
 	BlockNum(filename string) (int, error)
 	BlockSize() int
+	IsNew() bool
 }

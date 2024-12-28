@@ -3,7 +3,7 @@ package record
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/simple-db/pkg/file"
 )
 
 const int32Bytes = 4

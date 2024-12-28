@@ -1,6 +1,6 @@
 package record
 
-import "github.com/kj455/db/pkg/file"
+import "github.com/kj455/simple-db/pkg/file"
 
 type SchemaType int
 

@@ -3,12 +3,12 @@ package record
 import (
 	"testing"
 
-	"github.com/kj455/db/pkg/buffer"
-	buffermgr "github.com/kj455/db/pkg/buffer_mgr"
-	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/testutil"
-	"github.com/kj455/db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/buffer"
+	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
+	"github.com/kj455/simple-db/pkg/file"
+	"github.com/kj455/simple-db/pkg/log"
+	"github.com/kj455/simple-db/pkg/testutil"
+	"github.com/kj455/simple-db/pkg/tx/transaction"
 	"github.com/stretchr/testify/assert"
 )
 

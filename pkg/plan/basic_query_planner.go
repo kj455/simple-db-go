@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kj455/db/pkg/metadata"
-	"github.com/kj455/db/pkg/parse"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/metadata"
+	"github.com/kj455/simple-db/pkg/parse"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type BasicQueryPlanner struct {

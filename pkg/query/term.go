@@ -1,8 +1,8 @@
 package query
 
 import (
-	"github.com/kj455/db/pkg/constant"
-	"github.com/kj455/db/pkg/record"
+	"github.com/kj455/simple-db/pkg/constant"
+	"github.com/kj455/simple-db/pkg/record"
 )
 
 type Term struct {

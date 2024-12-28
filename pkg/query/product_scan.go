@@ -3,7 +3,7 @@ package query
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/constant"
+	"github.com/kj455/simple-db/pkg/constant"
 )
 
 // ProductScan corresponds to the product relational algebra operator.

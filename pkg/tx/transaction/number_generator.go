@@ -4,7 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type TxNumberGeneratorImpl struct {

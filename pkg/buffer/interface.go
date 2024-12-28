@@ -1,6 +1,6 @@
 package buffer
 
-import "github.com/kj455/db/pkg/file"
+import "github.com/kj455/simple-db/pkg/file"
 
 type Buffer interface {
 	Block() file.BlockId

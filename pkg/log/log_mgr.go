@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/simple-db/pkg/file"
 )
 
 /*

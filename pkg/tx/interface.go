@@ -1,8 +1,8 @@
 package tx
 
 import (
-	"github.com/kj455/db/pkg/buffer"
-	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/simple-db/pkg/buffer"
+	"github.com/kj455/simple-db/pkg/file"
 )
 
 type Transaction interface {

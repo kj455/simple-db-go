@@ -3,9 +3,9 @@ package record
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/constant"
-	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/constant"
+	"github.com/kj455/simple-db/pkg/file"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type TableScanImpl struct {

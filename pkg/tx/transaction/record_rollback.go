@@ -3,9 +3,9 @@ package transaction
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/file"
-	"github.com/kj455/db/pkg/log"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/file"
+	"github.com/kj455/simple-db/pkg/log"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type RollbackRecord struct {

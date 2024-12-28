@@ -114,6 +114,10 @@ func (m *FileMgrImpl) BlockSize() int {
 	return m.blockSize
 }
 
+func (m *FileMgrImpl) IsNew() bool {
+	return m.isNew
+}
+
 func (mgr *FileMgrImpl) getFile(filename string) (*os.File, error) {
 	if f, exists := mgr.openFiles[filename]; exists {
 		return f, nil

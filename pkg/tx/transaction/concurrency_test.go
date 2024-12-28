@@ -3,7 +3,7 @@ package transaction
 import (
 	"testing"
 
-	"github.com/kj455/db/pkg/file"
+	"github.com/kj455/simple-db/pkg/file"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"github.com/kj455/db/pkg/record"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/record"
+	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type MetadataMgrImpl struct {

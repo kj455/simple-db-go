@@ -3,8 +3,8 @@ package plan
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/query"
-	"github.com/kj455/db/pkg/record"
+	"github.com/kj455/simple-db/pkg/query"
+	"github.com/kj455/simple-db/pkg/record"
 )
 
 type ProjectPlan struct {

@@ -1,4 +1,4 @@
-module github.com/kj455/db
+module github.com/kj455/simple-db
 
 go 1.22.1
 

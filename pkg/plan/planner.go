@@ -3,9 +3,13 @@ package plan
 import (
 	"fmt"
 
-	"github.com/kj455/db/pkg/parse"
-	"github.com/kj455/db/pkg/tx"
+	"github.com/kj455/simple-db/pkg/parse"
+	"github.com/kj455/simple-db/pkg/tx"
 )
+
+type QueryPlanner interface {
+	CreatePlan(data parse.QueryData, tx tx.Transaction) (Plan, error)
+}
 
 type Planner struct {
 	queryPlanner  *BasicQueryPlanner
