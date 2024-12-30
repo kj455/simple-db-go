@@ -125,8 +125,7 @@ func (l *Lexer) matchIntConstant() bool {
 
 // matchStringConstant returns true if the current token is a string.
 func (l *Lexer) MatchStringConstant() bool {
-	// return l.ttype == 'S' // Assuming 'S' represents a string
-	return rune(l.strVal[0]) == '\''
+	return l.typ == TokenString
 }
 
 // matchKeyword returns true if the current token is the specified keyword.

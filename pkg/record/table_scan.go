@@ -51,7 +51,6 @@ func (ts *TableScanImpl) Next() bool {
 		}
 		err := ts.moveToBlock(ts.recordPage.Block().Number() + 1)
 		if err != nil {
-			fmt.Println("record: table scan: next: ", err)
 			return false
 		}
 		ts.curSlot = ts.recordPage.NextAfter(ts.curSlot)
@@ -157,14 +156,18 @@ func (ts *TableScanImpl) Delete() error {
 	return ts.recordPage.Delete(ts.curSlot)
 }
 
-func (ts *TableScanImpl) MoveToRid(rid RID) {
+func (ts *TableScanImpl) MoveToRID(rid RID) (err error) {
 	ts.Close()
 	blk := file.NewBlockId(ts.filename, rid.BlockNumber())
-	ts.recordPage, _ = NewRecordPage(ts.tx, blk, ts.layout)
+	ts.recordPage, err = NewRecordPage(ts.tx, blk, ts.layout)
+	if err != nil {
+		return fmt.Errorf("record: failed to move to rid: %w", err)
+	}
 	ts.curSlot = rid.Slot()
+	return nil
 }
 
-func (ts *TableScanImpl) GetRid() RID {
+func (ts *TableScanImpl) GetRID() RID {
 	return NewRID(ts.recordPage.Block().Number(), ts.curSlot)
 }
 

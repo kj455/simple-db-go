@@ -64,7 +64,7 @@ func TestTableScan(t *testing.T) {
 
 	// Scan the records
 	rid := NewRID(0, -1)
-	scan.MoveToRid(rid)
+	scan.MoveToRID(rid)
 	count := 0
 	for scan.Next() {
 		a, err := scan.GetInt("A")

@@ -24,13 +24,13 @@ func (bp *BasicQueryPlanner) CreatePlan(data *parse.QueryData, tx tx.Transaction
 	plans := make([]Plan, 0, len(data.Tables))
 	for _, table := range data.Tables {
 		viewDef, err := bp.mdMgr.GetViewDef(table, tx)
-		if err != nil && errors.Is(err, metadata.ErrViewNotFound) {
-			return nil, fmt.Errorf("planner: failed to get view definition for %s: %v", table, err)
+		if err != nil && !errors.Is(err, metadata.ErrViewNotFound) {
+			return nil, fmt.Errorf("plan: failed to get view definition for %s: %v", table, err)
 		}
 		if isTable := errors.Is(err, metadata.ErrViewNotFound); isTable {
 			plan, err := NewTablePlan(tx, table, bp.mdMgr)
 			if err != nil {
-				return nil, fmt.Errorf("planner: failed to create table plan for %s: %v", table, err)
+				return nil, fmt.Errorf("plan: failed to create table plan for %s: %v", table, err)
 			}
 			plans = append(plans, plan)
 			continue
@@ -38,17 +38,17 @@ func (bp *BasicQueryPlanner) CreatePlan(data *parse.QueryData, tx tx.Transaction
 		parser := parse.NewParser(viewDef)
 		viewData, err := parser.Query()
 		if err != nil {
-			return nil, fmt.Errorf("planner: failed to parse view definition for %s: %v", table, err)
+			return nil, fmt.Errorf("plan: failed to parse view definition for %s: %v", table, err)
 		}
 		plan, err := bp.CreatePlan(viewData, tx)
 		if err != nil {
-			return nil, fmt.Errorf("planner: failed to create view plan for %s: %v", table, err)
+			return nil, fmt.Errorf("plan: failed to create view plan for %s: %v", table, err)
 		}
 		plans = append(plans, plan)
 	}
 
 	if len(plans) == 0 {
-		return nil, errors.New("planner: no tables or views in query")
+		return nil, errors.New("plan: no tables or views in query")
 	}
 
 	plan := plans[0]
@@ -56,13 +56,13 @@ func (bp *BasicQueryPlanner) CreatePlan(data *parse.QueryData, tx tx.Transaction
 	for i := 1; i < len(plans); i++ {
 		plan, err = NewProductPlan(plan, plans[i])
 		if err != nil {
-			return nil, fmt.Errorf("planner: failed to create product plan: %v", err)
+			return nil, fmt.Errorf("plan: failed to create product plan: %v", err)
 		}
 	}
 	plan = NewSelectPlan(plan, data.Pred)
 	plan, err = NewProjectPlan(plan, data.Fields)
 	if err != nil {
-		return nil, fmt.Errorf("planner: failed to create project plan: %v", err)
+		return nil, fmt.Errorf("plan: failed to create project plan: %v", err)
 	}
 
 	return plan, nil

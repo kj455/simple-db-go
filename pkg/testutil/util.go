@@ -7,6 +7,15 @@ import (
 
 const testDir = ".tmp"
 
+func SetupDir(dirname string) (dir string, cleanup func()) {
+	path := filepath.Join(RootDir(), testDir, dirname)
+	_ = os.MkdirAll(path, os.ModePerm)
+	cleanup = func() {
+		_ = os.RemoveAll(path)
+	}
+	return path, cleanup
+}
+
 // SetupFile creates a file in the test directory and returns the directory, file, and cleanup function.
 func SetupFile(filename string) (dir string, f *os.File, cleanup func()) {
 	path := filepath.Join(RootDir(), testDir, filename)

@@ -16,17 +16,11 @@ import (
 
 func TestTransaction(t *testing.T) {
 	t.Parallel()
-	const (
-		filename    = "test_transaction"
-		logFilename = "test_transaction_log"
-		blockSize   = 400
-	)
-	dir, _, cleanup := testutil.SetupFile(filename)
+	const blockSize = 400
+	dir, cleanup := testutil.SetupDir("test_transaction")
 	t.Cleanup(cleanup)
-	_, _, cleanupLog := testutil.SetupFile(logFilename)
-	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)
-	logMgr, err := log.NewLogMgr(fileMgr, logFilename)
+	logMgr, err := log.NewLogMgr(fileMgr, "test_transaction_log")
 	assert.NoError(t, err)
 	const buffNum = 2
 	buffs := make([]buffer.Buffer, buffNum)
@@ -41,7 +35,7 @@ func TestTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, buffNum, tx1.AvailableBuffs())
 
-	block := file.NewBlockId(filename, 0)
+	block := file.NewBlockId("test_transaction", 0)
 	tx1.Pin(block)
 	tx1.SetInt(block, 80, 1, false)
 	tx1.SetString(block, 40, "one", false)
@@ -84,14 +78,12 @@ func TestTransaction(t *testing.T) {
 func TestTransaction_Concurrency(t *testing.T) {
 	t.Parallel()
 	const (
-		blockSize       = 400
-		testFileName    = "test_transaction_concurrency"
-		testLogFileName = "test_transaction_concurrency_log"
+		blockSize    = 400
+		dirname      = "test_transaction_concurrency"
+		testFileName = "concurrency"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_transaction_concurrency")
 	t.Cleanup(cleanup)
-	_, _, cleanupLog := testutil.SetupFile(testLogFileName)
-	defer cleanupLog()
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, testFileName)
 	buffs := make([]buffer.Buffer, 2)
@@ -184,13 +176,12 @@ func TestTransaction_Size(t *testing.T) {
 	t.Parallel()
 	const (
 		blockSize   = 400
-		fileName    = "test_transaction_size"
-		logFileName = "test_transaction_size_log"
+		dirname     = "test_transaction_size"
+		fileName    = "file"
+		logFileName = "log"
 	)
-	dir, _, cleanup := testutil.SetupFile(fileName)
+	dir, cleanup := testutil.SetupDir(dirname)
 	t.Cleanup(cleanup)
-	_, _, cleanupLog := testutil.SetupFile(logFileName)
-	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)

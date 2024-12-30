@@ -5,6 +5,7 @@ go 1.22.1
 require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/mock v0.4.0
+	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 )
 
 require (

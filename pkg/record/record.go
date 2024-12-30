@@ -64,6 +64,6 @@ type TableScan interface {
 	Close()
 	Insert() error
 	Delete() error
-	MoveToRid(rid RID)
-	GetRid() RID
+	MoveToRID(rid RID) error
+	GetRID() RID
 }
