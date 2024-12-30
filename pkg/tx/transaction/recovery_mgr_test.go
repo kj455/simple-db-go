@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -77,14 +76,14 @@ func TestRecoveryMgr_Recover(t *testing.T) {
 	assert.Equal(t, "", buf.Contents().GetString(200))
 }
 
-func setupRecoveryMgrTest(t *testing.T, testFileName string) (file.FileMgr, log.LogMgr, buffer.Buffer, buffermgr.BufferMgr, *TransactionImpl, func()) {
+func setupRecoveryMgrTest(t *testing.T, testFileName string) (file.FileMgr, log.LogMgr, buffer.Buffer, buffer.BufferMgr, *TransactionImpl, func()) {
 	const blockSize = 4096
 	dir, _, cleanup := testutil.SetupFile(testFileName)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, testFileName)
 	assert.NoError(t, err)
 	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	bufferMgr := buffer.NewBufferMgr([]buffer.Buffer{buf})
 	bufferMgr.Pin(file.NewBlockId(testFileName, 0))
 	txNumGen := NewTxNumberGenerator()
 	tx, err := NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)

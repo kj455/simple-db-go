@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -28,7 +27,7 @@ func TestRecordPage(t *testing.T) {
 	lm, err := log.NewLogMgr(fm, logTestFileName)
 	assert.NoError(t, err)
 	buff := buffer.NewBuffer(fm, lm, blockSize)
-	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buff})
+	bm := buffer.NewBufferMgr([]buffer.Buffer{buff})
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
 	assert.NoError(t, err)

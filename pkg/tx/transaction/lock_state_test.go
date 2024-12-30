@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,10 @@ func TestUnlocked(t *testing.T) {
 		{1, false},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.state.Unlocked(), tt.expected)
+		t.Run(fmt.Sprintf("state: %d", tt.state), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.state.Unlocked(), tt.expected)
+		})
 	}
 }
 
@@ -32,7 +36,10 @@ func TestIsXLocked(t *testing.T) {
 		{1, false},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.state.IsXLocked(), tt.expected)
+		t.Run(fmt.Sprintf("state: %d", tt.state), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.state.IsXLocked(), tt.expected)
+		})
 	}
 }
 
@@ -48,7 +55,9 @@ func TestIsSLocked(t *testing.T) {
 		{2, true},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.state.IsSLocked(), tt.expected)
+		t.Run(fmt.Sprintf("state: %d", tt.state), func(t *testing.T) {
+			assert.Equal(t, tt.state.IsSLocked(), tt.expected)
+		})
 	}
 }
 
@@ -64,7 +73,10 @@ func TestIsMultipleSLocked(t *testing.T) {
 		{2, true},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.state.IsMultipleSLocked(), tt.expected)
+		t.Run(fmt.Sprintf("state: %d", tt.state), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.state.IsMultipleSLocked(), tt.expected)
+		})
 	}
 }
 
@@ -81,12 +93,15 @@ func TestNext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := test.state.Next()
-		assert.Equal(t, test.expected, got)
-		if test.expectErr {
-			assert.NotNil(t, err)
-			return
-		}
-		assert.Nil(t, err)
+		t.Run(fmt.Sprintf("state: %d", test.state), func(t *testing.T) {
+			t.Parallel()
+			got, err := test.state.Next()
+			assert.Equal(t, test.expected, got)
+			if test.expectErr {
+				assert.NotNil(t, err)
+				return
+			}
+			assert.Nil(t, err)
+		})
 	}
 }

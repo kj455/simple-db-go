@@ -38,6 +38,7 @@ func TestConcurrencyMgr_SLock(t *testing.T) {
 func TestConcurrencyMgr_XLock(t *testing.T) {
 	t.Parallel()
 	t.Run("XLock", func(t *testing.T) {
+		t.Parallel()
 		const filename = "test_concurrency_xlock"
 		concurMgr := NewConcurrencyMgr()
 		block1 := file.NewBlockId(filename, 1)

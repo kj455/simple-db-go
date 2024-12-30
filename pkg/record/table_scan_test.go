@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -30,7 +29,7 @@ func TestTableScan(t *testing.T) {
 	assert.NoError(t, err)
 	buff := buffer.NewBuffer(fm, lm, blockSize)
 	buff2 := buffer.NewBuffer(fm, lm, blockSize)
-	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buff, buff2})
+	bm := buffer.NewBufferMgr([]buffer.Buffer{buff, buff2})
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
 	assert.NoError(t, err)

@@ -4,14 +4,13 @@ import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 )
 
 type BufferListImpl struct {
 	buffers map[file.BlockId]buffer.Buffer
 	pins    []file.BlockId
-	bm      buffermgr.BufferMgr
+	bm      buffer.BufferMgr
 }
 
 /*
@@ -23,7 +22,7 @@ A BufferList object needs to know two things:
 The code uses a map to determine buffers and a list to determine pin counts.
 The list contains a BlockId object as many times as it is pinned; each time the block is unpinned, one instance is removed from the list.
 */
-func NewBufferList(bm buffermgr.BufferMgr) *BufferListImpl {
+func NewBufferList(bm buffer.BufferMgr) *BufferListImpl {
 	return &BufferListImpl{
 		buffers: make(map[file.BlockId]buffer.Buffer),
 		pins:    make([]file.BlockId, 0),

@@ -1,4 +1,4 @@
-package buffermgr
+package buffer
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kj455/simple-db/pkg/buffer"
 	"github.com/kj455/simple-db/pkg/file"
 	ttime "github.com/kj455/simple-db/pkg/time"
 )
@@ -14,7 +13,7 @@ import (
 const defaultMaxWaitTime = 10 * time.Second
 
 type BufferMgrImpl struct {
-	pool         []buffer.Buffer
+	pool         []Buffer
 	availableNum int
 	mu           sync.Mutex
 	time         ttime.Time
@@ -35,7 +34,7 @@ func WithTime(t ttime.Time) Option {
 	}
 }
 
-func NewBufferMgr(buffs []buffer.Buffer, opts ...Option) *BufferMgrImpl {
+func NewBufferMgr(buffs []Buffer, opts ...Option) *BufferMgrImpl {
 	bm := &BufferMgrImpl{
 		pool:         buffs,
 		availableNum: len(buffs),
@@ -48,11 +47,11 @@ func NewBufferMgr(buffs []buffer.Buffer, opts ...Option) *BufferMgrImpl {
 	return bm
 }
 
-func (bm *BufferMgrImpl) Pin(block file.BlockId) (buffer.Buffer, error) {
+func (bm *BufferMgrImpl) Pin(block file.BlockId) (Buffer, error) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	startTime := bm.time.Now()
-	var buff buffer.Buffer
+	var buff Buffer
 	var ok bool
 	for {
 		buff, ok = bm.tryPin(block)
@@ -69,7 +68,7 @@ func (bm *BufferMgrImpl) Pin(block file.BlockId) (buffer.Buffer, error) {
 	return buff, nil
 }
 
-func (bm *BufferMgrImpl) Unpin(buff buffer.Buffer) {
+func (bm *BufferMgrImpl) Unpin(buff Buffer) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	buff.Unpin()
@@ -107,7 +106,7 @@ func (bm *BufferMgrImpl) hasWaitedTooLong(startTime time.Time) bool {
 	return bm.time.Since(startTime) > bm.maxWaitTime
 }
 
-func (bm *BufferMgrImpl) tryPin(block file.BlockId) (buffer.Buffer, bool) {
+func (bm *BufferMgrImpl) tryPin(block file.BlockId) (Buffer, bool) {
 	buff, ok := bm.findBufferByBlock(block)
 	if !ok {
 		buff, ok = bm.findUnpinnedBuffer()
@@ -128,7 +127,7 @@ func (bm *BufferMgrImpl) tryPin(block file.BlockId) (buffer.Buffer, bool) {
 	return buff, true
 }
 
-func (bm *BufferMgrImpl) findBufferByBlock(block file.BlockId) (buffer.Buffer, bool) {
+func (bm *BufferMgrImpl) findBufferByBlock(block file.BlockId) (Buffer, bool) {
 	for _, buff := range bm.pool {
 		b := buff.Block()
 		if b != nil && b.Equals(block) {
@@ -138,7 +137,7 @@ func (bm *BufferMgrImpl) findBufferByBlock(block file.BlockId) (buffer.Buffer, b
 	return nil, false
 }
 
-func (bm *BufferMgrImpl) findUnpinnedBuffer() (buffer.Buffer, bool) {
+func (bm *BufferMgrImpl) findUnpinnedBuffer() (Buffer, bool) {
 	for _, buff := range bm.pool {
 		if !buff.IsPinned() {
 			return buff, true

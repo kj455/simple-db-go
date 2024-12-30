@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/tx"
@@ -14,14 +13,14 @@ type TransactionImpl struct {
 	recoveryMgr tx.RecoveryMgr
 	concurMgr   tx.ConcurrencyMgr
 	buffs       tx.BufferList
-	bm          buffermgr.BufferMgr
+	bm          buffer.BufferMgr
 	fm          file.FileMgr
 	txNum       int
 }
 
 const END_OF_FILE = -1
 
-func NewTransaction(fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, txNumGen tx.TxNumberGenerator) (*TransactionImpl, error) {
+func NewTransaction(fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen tx.TxNumberGenerator) (*TransactionImpl, error) {
 	txNum := txNumGen.Next()
 	cm := NewConcurrencyMgr()
 	rm, err := NewRecoveryMgr(nil, txNum, lm, bm)

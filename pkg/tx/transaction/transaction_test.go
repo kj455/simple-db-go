@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -27,7 +26,7 @@ func TestTransaction(t *testing.T) {
 	for i := 0; i < buffNum; i++ {
 		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	bm := buffer.NewBufferMgr(buffs)
 	txNumGen := NewTxNumberGenerator()
 
 	// TX1
@@ -90,15 +89,15 @@ func TestTransaction_Concurrency(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
 	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	bm := buffer.NewBufferMgr(buffs)
 	txNumGen := NewTxNumberGenerator()
 	blk1 := file.NewBlockId(testFileName, 1)
 	blk2 := file.NewBlockId(testFileName, 2)
 
 	wg := &sync.WaitGroup{}
-	var A, B, C func(*testing.T, file.FileMgr, log.LogMgr, buffermgr.BufferMgr, tx.TxNumberGenerator)
+	var A, B, C func(*testing.T, file.FileMgr, log.LogMgr, buffer.BufferMgr, tx.TxNumberGenerator)
 	wg.Add(3)
-	A = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, tng tx.TxNumberGenerator) {
+	A = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, tng tx.TxNumberGenerator) {
 		txA, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txA.Pin(blk1)
 		txA.Pin(blk2)
@@ -118,7 +117,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 		t.Log("Tx A: commit")
 		wg.Done()
 	}
-	B = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, txNumGen tx.TxNumberGenerator) {
+	B = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen tx.TxNumberGenerator) {
 		txB, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txB.Pin(blk1)
 		txB.Pin(blk2)
@@ -138,7 +137,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 		t.Log("Tx B: commit")
 		wg.Done()
 	}
-	C = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffermgr.BufferMgr, txNumGen tx.TxNumberGenerator) {
+	C = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen tx.TxNumberGenerator) {
 		txC, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txC.Pin(blk1)
 		txC.Pin(blk2)
@@ -186,7 +185,7 @@ func TestTransaction_Size(t *testing.T) {
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)
 	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	bm := buffer.NewBufferMgr([]buffer.Buffer{buf})
 	txNumGen := NewTxNumberGenerator()
 	tx, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)
@@ -224,7 +223,7 @@ func TestTransaction_Append(t *testing.T) {
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)
 	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-	bm := buffermgr.NewBufferMgr([]buffer.Buffer{buf})
+	bm := buffer.NewBufferMgr([]buffer.Buffer{buf})
 	txNumGen := NewTxNumberGenerator()
 	tx, err := NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	assert.NoError(t, err)

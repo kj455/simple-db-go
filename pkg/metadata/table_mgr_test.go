@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/record"
@@ -27,7 +26,7 @@ func TestTableMgr(t *testing.T) {
 	buff1 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	buff2 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	buff3 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buff1, buff2, buff3})
+	bufferMgr := buffer.NewBufferMgr([]buffer.Buffer{buff1, buff2, buff3})
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
 	assert.NoError(t, err)

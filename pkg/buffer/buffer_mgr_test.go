@@ -1,9 +1,8 @@
-package buffermgr
+package buffer
 
 import (
 	"testing"
 
-	"github.com/kj455/simple-db/pkg/buffer"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -24,9 +23,9 @@ func TestBufferMgr_Pin(t *testing.T) {
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
-		buffs := make([]buffer.Buffer, buffNum)
+		buffs := make([]Buffer, buffNum)
 		for i := 0; i < buffNum; i++ {
-			buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
+			buffs[i] = NewBuffer(fileMgr, logMgr, blockSize)
 		}
 		bm := NewBufferMgr(buffs, WithMaxWaitTime(0))
 		assert.Equal(t, buffNum, bm.AvailableNum())
@@ -49,9 +48,9 @@ func TestBufferMgr_Pin(t *testing.T) {
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
-		buffs := make([]buffer.Buffer, buffNum)
+		buffs := make([]Buffer, buffNum)
 		for i := 0; i < buffNum; i++ {
-			buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
+			buffs[i] = NewBuffer(fileMgr, logMgr, blockSize)
 		}
 		bm := NewBufferMgr(buffs, WithMaxWaitTime(0))
 		blk := file.NewBlockId(logFileName, 0)
@@ -77,9 +76,9 @@ func TestBufferMgr_Pin(t *testing.T) {
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
-		buffs := make([]buffer.Buffer, buffNum)
+		buffs := make([]Buffer, buffNum)
 		for i := 0; i < buffNum; i++ {
-			buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
+			buffs[i] = NewBuffer(fileMgr, logMgr, blockSize)
 		}
 		bm := NewBufferMgr(buffs, WithMaxWaitTime(0))
 		blk := file.NewBlockId(logFileName, 0)
@@ -107,8 +106,8 @@ func TestBufferMgrImpl_Unpin(t *testing.T) {
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
-		buff := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-		bm := NewBufferMgr([]buffer.Buffer{buff}, WithMaxWaitTime(0))
+		buff := NewBuffer(fileMgr, logMgr, blockSize)
+		bm := NewBufferMgr([]Buffer{buff}, WithMaxWaitTime(0))
 		blk := file.NewBlockId(logFileName, 0)
 
 		_, err = bm.Pin(blk)
@@ -141,14 +140,14 @@ func TestBufferMgrImpl_FlushAll(t *testing.T) {
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
-		buff := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-		bm := NewBufferMgr([]buffer.Buffer{buff}, WithMaxWaitTime(0))
+		buff := NewBuffer(fileMgr, logMgr, blockSize)
+		bm := NewBufferMgr([]Buffer{buff}, WithMaxWaitTime(0))
 		blk := file.NewBlockId(logFileName, 0)
 		pBuf, err := bm.Pin(blk)
 		assert.NoError(t, err)
 
 		// setup: buffer is modified by txNum 1
-		pBuf.WriteContents(txNum, 1, func(p buffer.ReadWritePage) {
+		pBuf.WriteContents(txNum, 1, func(p ReadWritePage) {
 			p.SetInt(100, 200)
 		})
 

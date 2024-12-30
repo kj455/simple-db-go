@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/metadata"
@@ -34,7 +33,7 @@ func (d *SimpleDriver) Open(name string) (driver.Conn, error) {
 
 type Conn struct {
 	fileMgr file.FileMgr
-	bufMgr  buffermgr.BufferMgr
+	bufMgr  buffer.BufferMgr
 	logMgr  log.LogMgr
 	tx      tx.Transaction
 	mdMgr   metadata.MetadataMgr
@@ -58,7 +57,7 @@ func NewConn(name string) (*Conn, error) {
 	for i := 0; i < buffNum; i++ {
 		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	bm := buffer.NewBufferMgr(buffs)
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	if err != nil {

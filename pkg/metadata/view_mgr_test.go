@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -28,7 +27,7 @@ func TestViewMgr(t *testing.T) {
 	for i := range buffs {
 		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
-	bufferMgr := buffermgr.NewBufferMgr(buffs, buffermgr.WithMaxWaitTime(0))
+	bufferMgr := buffer.NewBufferMgr(buffs, buffer.WithMaxWaitTime(0))
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
 	assert.NoError(t, err)

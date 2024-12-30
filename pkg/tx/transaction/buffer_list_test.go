@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
@@ -26,7 +25,7 @@ func TestBufferList(t *testing.T) {
 	block2 := file.NewBlockId(testFileName, 1)
 	buf := buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	buf2 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
-	bufferMgr := buffermgr.NewBufferMgr([]buffer.Buffer{buf, buf2})
+	bufferMgr := buffer.NewBufferMgr([]buffer.Buffer{buf, buf2})
 	bufferList := NewBufferList(bufferMgr)
 
 	bufferList.Pin(block1)

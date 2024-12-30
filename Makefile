@@ -20,11 +20,7 @@ coverage:
 	go test -coverprofile=.coverage/coverage.out $(PKG)
 	go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
 mockgen:
-	find ./pkg -name 'interface.go' -exec sh -c 'for file; do \
-		dest_dir=$$(dirname "$$file")/mock; \
-		mkdir -p "$$dest_dir"; \
-		mockgen -source="$$file" -destination="$$dest_dir/$$(basename "$$file")" -package=mock; \
-	done' sh {} +
+	go generate ./...
 fmt:
 	go fmt $(PKG)
 import-tools:

@@ -25,11 +25,13 @@ func newMocks(ctrl *gomock.Controller) *mocks {
 func TestNewLock(t *testing.T) {
 	t.Parallel()
 	t.Run("default", func(t *testing.T) {
+		t.Parallel()
 		l := NewLock()
 		assert.NotNil(t, l)
 		assert.Equal(t, DEFAULT_MAX_WAIT_TIME, l.maxWaitTime)
 	})
 	t.Run("custom", func(t *testing.T) {
+		t.Parallel()
 		l := NewLock(WithWaitTime(time.Duration(5)))
 		assert.NotNil(t, l)
 		assert.Equal(t, time.Duration(5), l.maxWaitTime)
@@ -68,6 +70,7 @@ func TestSLock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			m := newMocks(ctrl)
@@ -147,6 +150,7 @@ func TestXLock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			m := newMocks(ctrl)
@@ -247,6 +251,7 @@ func TestUnlock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			m := newMocks(ctrl)

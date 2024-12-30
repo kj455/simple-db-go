@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/buffer"
-	buffermgr "github.com/kj455/simple-db/pkg/buffer_mgr"
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/metadata"
@@ -35,7 +34,7 @@ func TestProductScan(t *testing.T) {
 	for i := range buffs {
 		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
 	}
-	bm := buffermgr.NewBufferMgr(buffs)
+	bm := buffer.NewBufferMgr(buffs)
 	txNumGen := transaction.NewTxNumberGenerator()
 	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
 	assert.NoError(t, err)
