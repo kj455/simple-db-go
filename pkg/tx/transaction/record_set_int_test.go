@@ -49,10 +49,10 @@ func TestWriteSetIntRecordToLog(t *testing.T) {
 		blockNum     = 2
 		offset       = 3
 		val          = 123
-		testFileName = "test_write_set_int_record_to_log"
+		testFileName = "file"
 		blockSize    = 400
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_write_set_int_record_to_log")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	lm, err := log.NewLogMgr(fileMgr, testFileName)

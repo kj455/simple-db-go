@@ -15,17 +15,14 @@ import (
 func TestTableScan(t *testing.T) {
 	t.Parallel()
 	const (
-		blockSize       = 800
-		testFileName    = "test_table_scan"
-		logTestFileName = "test_table_scan_log"
+		blockSize    = 800
+		testFileName = "file"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_table_scan")
 	t.Cleanup(cleanup)
-	_, _, logCleanup := testutil.SetupFile(logTestFileName)
-	defer logCleanup()
 
 	fm := file.NewFileMgr(dir, blockSize)
-	lm, err := log.NewLogMgr(fm, logTestFileName)
+	lm, err := log.NewLogMgr(fm, testFileName)
 	assert.NoError(t, err)
 	buff := buffer.NewBuffer(fm, lm, blockSize)
 	buff2 := buffer.NewBuffer(fm, lm, blockSize)

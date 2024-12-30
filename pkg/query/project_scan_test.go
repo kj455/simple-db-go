@@ -16,10 +16,10 @@ import (
 func TestProjectScan(t *testing.T) {
 	const (
 		blockSize    = 400
-		testFileName = "test_project_scan"
+		testFileName = "fileMgr"
 		tableName    = "table_test_project_scan"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_project_scan")
 	t.Cleanup(cleanup)
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, testFileName)

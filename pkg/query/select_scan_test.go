@@ -17,10 +17,10 @@ import (
 func TestSelectScan(t *testing.T) {
 	const (
 		blockSize    = 400
-		testFileName = "test_select_scan"
+		testFileName = "file"
 		tableName    = "test_select_scan"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_select_scan")
 	t.Cleanup(cleanup)
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, testFileName)

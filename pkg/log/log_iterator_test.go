@@ -11,10 +11,10 @@ import (
 func TestNewLogIterator(t *testing.T) {
 	t.Parallel()
 	const (
-		fileName  = "test_log_iterator"
+		fileName  = "file"
 		blockSize = 8
 	)
-	dir, _, cleanup := testutil.SetupFile(fileName)
+	dir, cleanup := testutil.SetupDir("test_log_iterator")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	writePage := file.NewPage(blockSize)
@@ -33,9 +33,9 @@ func TestLogIterator_HasNext(t *testing.T) {
 	t.Run("offset is less than block size", func(t *testing.T) {
 		const (
 			blockSize = 4096
-			filename  = "test_log_iterator_has_next"
+			filename  = "file"
 		)
-		dir, _, cleanup := testutil.SetupFile(filename)
+		dir, cleanup := testutil.SetupDir("test_log_iterator_has_next")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 0)
@@ -54,7 +54,7 @@ func TestLogIterator_HasNext(t *testing.T) {
 			blockSize = 4096
 			filename  = "test_log_iterator_has_next"
 		)
-		dir, _, cleanup := testutil.SetupFile(filename)
+		dir, cleanup := testutil.SetupDir(filename)
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 1)
@@ -73,9 +73,9 @@ func TestLogIterator_Next(t *testing.T) {
 		const (
 			blockSize = 14
 			record    = "record"
-			filename  = "test_log_iterator_next_not_finished"
+			filename  = "file"
 		)
-		dir, _, cleanup := testutil.SetupFile(filename)
+		dir, cleanup := testutil.SetupDir("test_log_iterator_next_not_finished")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block := file.NewBlockId(filename, 0)
@@ -99,9 +99,9 @@ func TestLogIterator_Next(t *testing.T) {
 		const (
 			blockSize = 12
 			record    = "record"
-			filename  = "test_log_iterator_next_block_finished"
+			filename  = "file"
 		)
-		dir, _, cleanup := testutil.SetupFile(filename)
+		dir, cleanup := testutil.SetupDir("test_log_iterator_next_block_finished")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		block0 := file.NewBlockId(filename, 0)

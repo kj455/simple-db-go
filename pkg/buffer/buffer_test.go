@@ -12,17 +12,19 @@ import (
 func TestBuffer_WriteContents(t *testing.T) {
 	const (
 		blockSize   = 400
-		logFileName = "test_buffer_write_contents"
-		txNum       = 1
-		lsn         = 2
+		logFileName = "logfile"
 	)
-	dir, _, cleanup := testutil.SetupFile(logFileName)
+	dir, cleanup := testutil.SetupDir("test_buffer_write_contents")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)
 	buf := NewBuffer(fileMgr, logMgr, blockSize)
 
+	const (
+		txNum = 1
+		lsn   = 2
+	)
 	buf.WriteContents(txNum, lsn, func(p ReadWritePage) {
 		p.SetInt(100, 200)
 	})
@@ -41,8 +43,8 @@ func TestBuffer_Flush(t *testing.T) {
 	)
 	t.Run("skip flush", func(t *testing.T) {
 		t.Parallel()
-		const logFileName = "test_buffer_flush_skip"
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		const logFileName = "logfile"
+		dir, cleanup := testutil.SetupDir("test_buffer_flush_skip")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
@@ -56,8 +58,8 @@ func TestBuffer_Flush(t *testing.T) {
 	})
 	t.Run("flush", func(t *testing.T) {
 		t.Parallel()
-		const logFileName = "test_buffer_flush"
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		const logFileName = "logfile"
+		dir, cleanup := testutil.SetupDir("test_buffer_flush")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
@@ -89,9 +91,9 @@ func TestBuffer_AssignToBlock(t *testing.T) {
 		blockNum    = 0
 		tx          = 1
 		lsn         = 2
-		logFileName = "test_buffer_assign_to_block"
+		logFileName = "logfile"
 	)
-	dir, _, cleanup := testutil.SetupFile(logFileName)
+	dir, cleanup := testutil.SetupDir("test_buffer_assign_to_block")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)

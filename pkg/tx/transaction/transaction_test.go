@@ -215,10 +215,8 @@ func TestTransaction_Append(t *testing.T) {
 		fileName    = "test_transaction_append"
 		logFileName = "test_transaction_append_log"
 	)
-	dir, _, cleanup := testutil.SetupFile(fileName)
+	dir, cleanup := testutil.SetupDir("test_transaction_append")
 	t.Cleanup(cleanup)
-	_, _, cleanupLog := testutil.SetupFile(logFileName)
-	defer cleanupLog()
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 	assert.NoError(t, err)

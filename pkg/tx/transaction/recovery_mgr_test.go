@@ -78,7 +78,7 @@ func TestRecoveryMgr_Recover(t *testing.T) {
 
 func setupRecoveryMgrTest(t *testing.T, testFileName string) (file.FileMgr, log.LogMgr, buffer.Buffer, buffer.BufferMgr, *TransactionImpl, func()) {
 	const blockSize = 4096
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_recovery_mgr")
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, testFileName)
 	assert.NoError(t, err)

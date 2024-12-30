@@ -14,9 +14,9 @@ func TestBufferList(t *testing.T) {
 	t.Parallel()
 	const (
 		blockSize    = 4096
-		testFileName = "test_buffer_list"
+		testFileName = "file"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_buffer_list")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, testFileName)

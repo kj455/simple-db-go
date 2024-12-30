@@ -14,11 +14,11 @@ import (
 
 func TestTableMgr(t *testing.T) {
 	const (
-		logFileName = "test_table_mgr_log"
+		logFileName = "file"
 		blockSize   = 400
 		tableName   = "test_table_mgr_table"
 	)
-	dir, _, cleanup := testutil.SetupFile(logFileName)
+	dir, cleanup := testutil.SetupDir("test_table_mgr")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)

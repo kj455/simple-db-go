@@ -14,15 +14,13 @@ func TestBufferMgr_Pin(t *testing.T) {
 	const blockSize = 4096
 	t.Run("success - no buffer assigned with block", func(t *testing.T) {
 		t.Parallel()
-		const (
-			buffNum     = 3
-			logFileName = "test_buffer_mgr_pin_no_buffer_assigned"
-		)
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		const logFileName = "logfile"
+		dir, cleanup := testutil.SetupDir("test_buffer_mgr_pin_no_buffer_assigned")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
+		const buffNum = 3
 		buffs := make([]Buffer, buffNum)
 		for i := 0; i < buffNum; i++ {
 			buffs[i] = NewBuffer(fileMgr, logMgr, blockSize)
@@ -39,15 +37,13 @@ func TestBufferMgr_Pin(t *testing.T) {
 	})
 	t.Run("success - already pinned", func(t *testing.T) {
 		t.Parallel()
-		const (
-			logFileName = "test_buffer_mgr_pin_already_pinned"
-			buffNum     = 1
-		)
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		const logFileName = "logfile"
+		dir, cleanup := testutil.SetupDir("test_buffer_mgr_pin_already_pinned")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
 		assert.NoError(t, err)
+		const buffNum = 3
 		buffs := make([]Buffer, buffNum)
 		for i := 0; i < buffNum; i++ {
 			buffs[i] = NewBuffer(fileMgr, logMgr, blockSize)
@@ -68,10 +64,10 @@ func TestBufferMgr_Pin(t *testing.T) {
 	t.Run("fail - no available buffer", func(t *testing.T) {
 		t.Parallel()
 		const (
-			logFileName = "test_buffer_mgr_pin_no_available_buffer"
+			logFileName = "logfile"
 			buffNum     = 1
 		)
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		dir, cleanup := testutil.SetupDir("test_buffer_mgr_pin_no_available_buffer")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
@@ -99,9 +95,9 @@ func TestBufferMgrImpl_Unpin(t *testing.T) {
 		t.Parallel()
 		const (
 			blockSize   = 4096
-			logFileName = "test_buffer_mgr_unpin_available_increment"
+			logFileName = "logfile"
 		)
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		dir, cleanup := testutil.SetupDir("test_buffer_mgr_unpin_available_increment")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
@@ -132,10 +128,9 @@ func TestBufferMgrImpl_FlushAll(t *testing.T) {
 		t.Parallel()
 		const (
 			blockSize   = 4096
-			logFileName = "test_buffer_mgr_flush_all"
-			txNum       = 1
+			logFileName = "logfile"
 		)
-		dir, _, cleanup := testutil.SetupFile(logFileName)
+		dir, cleanup := testutil.SetupDir("test_buffer_mgr_flush_all")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		logMgr, err := log.NewLogMgr(fileMgr, logFileName)
@@ -147,6 +142,7 @@ func TestBufferMgrImpl_FlushAll(t *testing.T) {
 		assert.NoError(t, err)
 
 		// setup: buffer is modified by txNum 1
+		const txNum = 1
 		pBuf.WriteContents(txNum, 1, func(p ReadWritePage) {
 			p.SetInt(100, 200)
 		})

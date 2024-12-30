@@ -14,17 +14,14 @@ import (
 func TestRecordPage(t *testing.T) {
 	t.Parallel()
 	const (
-		blockSize       = 400
-		testFileName    = "test_record_page"
-		logTestFileName = "test_record_page_log"
+		blockSize    = 400
+		testFileName = "file"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
+	dir, cleanup := testutil.SetupDir("test_record_page")
 	t.Cleanup(cleanup)
-	_, _, logCleanup := testutil.SetupFile(logTestFileName)
-	defer logCleanup()
 
 	fm := file.NewFileMgr(dir, blockSize)
-	lm, err := log.NewLogMgr(fm, logTestFileName)
+	lm, err := log.NewLogMgr(fm, testFileName)
 	assert.NoError(t, err)
 	buff := buffer.NewBuffer(fm, lm, blockSize)
 	bm := buffer.NewBufferMgr([]buffer.Buffer{buff})

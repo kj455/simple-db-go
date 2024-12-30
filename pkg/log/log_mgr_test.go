@@ -1,6 +1,7 @@
 package log
 
 import (
+	"os"
 	"testing"
 
 	"github.com/kj455/simple-db/pkg/file"
@@ -12,10 +13,10 @@ func TestNewLogMgr(t *testing.T) {
 	t.Parallel()
 	t.Run("no block", func(t *testing.T) {
 		const (
-			testFileName = "test_new_log_mgr_first_block"
+			testFileName = "file"
 			blockSize    = 4096
 		)
-		dir, _, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_new_log_mgr_no_block")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 
@@ -29,14 +30,15 @@ func TestNewLogMgr(t *testing.T) {
 
 	t.Run("block exists", func(t *testing.T) {
 		const (
-			testFileName = "test_new_log_mgr_block_exists"
+			testFileName = "file"
 			blockSize    = 5
 		)
-		dir, f, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_new_log_mgr_block_exists")
 		t.Cleanup(cleanup)
 		record := []byte("hello world!!")
-		_, err := f.Write(record)
-		f.Close()
+		f, err := os.Create(dir + "/" + testFileName)
+		assert.NoError(t, err)
+		_, err = f.Write(record)
 		assert.NoError(t, err)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 
@@ -53,11 +55,11 @@ func TestLogMgr_Append(t *testing.T) {
 	t.Run("has space", func(t *testing.T) {
 		t.Parallel()
 		const (
-			testFileName = "test_log_mgr_append_has_space"
+			testFileName = "file"
 			blockSize    = 10
 			blockIdx     = 0
 		)
-		dir, _, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_log_mgr_append_has_space")
 		t.Cleanup(cleanup)
 		page := file.NewPage(blockSize)
 		page.SetInt(0, blockSize)
@@ -77,11 +79,11 @@ func TestLogMgr_Append(t *testing.T) {
 	t.Run("no space", func(t *testing.T) {
 		t.Parallel()
 		const (
-			testFileName = "test_log_mgr_append_no_space"
+			testFileName = "file"
 			blockSize    = 8
 			blockIdx     = 0
 		)
-		dir, _, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_log_mgr_append_no_space")
 		t.Cleanup(cleanup)
 		page := file.NewPage(blockSize)
 		page.SetInt(0, blockSize)
@@ -106,10 +108,10 @@ func TestLogMgr_Flush(t *testing.T) {
 	t.Run("flush past lsn", func(t *testing.T) {
 		t.Parallel()
 		const (
-			testFileName = "test_log_mgr_flush_past_lsn"
+			testFileName = "file"
 			blockSize    = 10
 		)
-		dir, _, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_log_mgr_flush_past_lsn")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		lm, err := NewLogMgr(fileMgr, testFileName)
@@ -127,10 +129,10 @@ func TestLogMgr_Flush(t *testing.T) {
 	t.Run("not flush past lsn", func(t *testing.T) {
 		t.Parallel()
 		const (
-			testFileName = "test_log_mgr_flush_not_past_lsn"
+			testFileName = "file"
 			blockSize    = 10
 		)
-		dir, _, cleanup := testutil.SetupFile(testFileName)
+		dir, cleanup := testutil.SetupDir("test_log_mgr_flush_not_past_lsn")
 		t.Cleanup(cleanup)
 		fileMgr := file.NewFileMgr(dir, blockSize)
 		lm, err := NewLogMgr(fileMgr, testFileName)

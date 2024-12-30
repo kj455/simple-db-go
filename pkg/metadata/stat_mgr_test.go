@@ -13,12 +13,11 @@ import (
 )
 
 func TestStatMgr(t *testing.T) {
-	t.Skip("skipping test")
 	const (
-		logFileName = "test_stat_mgr_log"
+		logFileName = "file"
 		blockSize   = 1024
 	)
-	dir, _, cleanup := testutil.SetupFile(logFileName)
+	dir, cleanup := testutil.SetupDir("test_stat_mgr")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)

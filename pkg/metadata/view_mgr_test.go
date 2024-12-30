@@ -12,12 +12,11 @@ import (
 )
 
 func TestViewMgr(t *testing.T) {
-	t.Skip("skipping test")
 	const (
-		logFileName = "test_view_mgr_log"
+		logFileName = "file"
 		blockSize   = 1024
 	)
-	dir, _, cleanup := testutil.SetupFile(logFileName)
+	dir, cleanup := testutil.SetupDir("test_view_mgr")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	logMgr, err := log.NewLogMgr(fileMgr, logFileName)

@@ -20,14 +20,8 @@ func TestProductScan(t *testing.T) {
 		tableNameA   = "table_test_product_scan_A"
 		tableNameB   = "table_test_product_scan_B"
 	)
-	dir, _, cleanup := testutil.SetupFile(testFileName)
-	_, _, cleanupTableA := testutil.SetupFile(tableNameA)
-	_, _, cleanupTableB := testutil.SetupFile(tableNameB)
-	defer func() {
-		cleanup()
-		cleanupTableA()
-		cleanupTableB()
-	}()
+	dir, cleanup := testutil.SetupDir("test_product_scan")
+	t.Cleanup(cleanup)
 	fm := file.NewFileMgr(dir, blockSize)
 	lm, _ := log.NewLogMgr(fm, testFileName)
 	buffs := make([]buffer.Buffer, 10)

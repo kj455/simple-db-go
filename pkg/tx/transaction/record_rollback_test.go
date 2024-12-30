@@ -28,9 +28,9 @@ func TestWriteRollbackRecordToLog(t *testing.T) {
 	const (
 		txNum     = 1
 		blockSize = 400
-		fileName  = "test_write_rollback_record_to_log"
+		fileName  = "file"
 	)
-	dir, _, cleanup := testutil.SetupFile(fileName)
+	dir, cleanup := testutil.SetupDir("test_write_rollback_record_to_log")
 	t.Cleanup(cleanup)
 	fileMgr := file.NewFileMgr(dir, blockSize)
 	lm, err := log.NewLogMgr(fileMgr, fileName)

@@ -8,7 +8,7 @@ import (
 const testDir = ".tmp"
 
 func SetupDir(dirname string) (dir string, cleanup func()) {
-	path := filepath.Join(RootDir(), testDir, dirname)
+	path := filepath.Join(rootDir(), testDir, dirname)
 	_ = os.MkdirAll(path, os.ModePerm)
 	cleanup = func() {
 		_ = os.RemoveAll(path)
@@ -16,20 +16,7 @@ func SetupDir(dirname string) (dir string, cleanup func()) {
 	return path, cleanup
 }
 
-// SetupFile creates a file in the test directory and returns the directory, file, and cleanup function.
-func SetupFile(filename string) (dir string, f *os.File, cleanup func()) {
-	path := filepath.Join(RootDir(), testDir, filename)
-	f, err := os.Create(path)
-	if err != nil {
-		panic(err)
-	}
-	cleanup = func() {
-		_ = os.Remove(path)
-	}
-	return filepath.Join(RootDir(), testDir), f, cleanup
-}
-
-func RootDir() string {
+func rootDir() string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		return ""
@@ -49,9 +36,4 @@ func RootDir() string {
 		break
 	}
 	return currentDir
-}
-
-func CleanupDir(dir string) {
-	_ = os.RemoveAll(dir)
-	_ = os.MkdirAll(dir, os.ModePerm)
 }
