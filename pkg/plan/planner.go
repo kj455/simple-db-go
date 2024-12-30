@@ -7,10 +7,6 @@ import (
 	"github.com/kj455/simple-db/pkg/tx"
 )
 
-type QueryPlanner interface {
-	CreatePlan(data parse.QueryData, tx tx.Transaction) (Plan, error)
-}
-
 type Planner struct {
 	queryPlanner  *BasicQueryPlanner
 	updatePlanner *BasicUpdatePlanner

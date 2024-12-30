@@ -1,8 +1,6 @@
 package query
 
 import (
-	"fmt"
-
 	"github.com/kj455/simple-db/pkg/constant"
 )
 
@@ -46,12 +44,8 @@ func (p *ProductScan) Next() bool {
 // GetInt returns the integer value of the specified field. The value is obtained from whichever scan contains the field.
 func (p *ProductScan) GetInt(field string) (int, error) {
 	if p.s1.HasField(field) {
-		v, _ := p.s1.GetInt(field)
-		fmt.Println("get from s1:", v)
 		return p.s1.GetInt(field)
 	}
-	v, _ := p.s2.GetInt(field)
-	fmt.Println("get from s2:", v)
 	return p.s2.GetInt(field)
 }
 

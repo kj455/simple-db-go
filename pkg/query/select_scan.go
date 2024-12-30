@@ -95,15 +95,12 @@ func (s *SelectScan) Insert() error {
 	return us.Insert()
 }
 
-func (s *SelectScan) GetRid() (record.RID, error) {
-	us, ok := s.scan.(UpdatableScan)
-	if !ok {
-		return nil, fmt.Errorf("query: scan is not an UpdateScan")
-	}
-	return us.GetRID(), nil
+func (s *SelectScan) GetRID() record.RID {
+	us := s.scan.(UpdatableScan)
+	return us.GetRID()
 }
 
-func (s *SelectScan) MoveToRid(rid record.RID) error {
+func (s *SelectScan) MoveToRID(rid record.RID) error {
 	us, ok := s.scan.(UpdatableScan)
 	if !ok {
 		return fmt.Errorf("query: scan is not an UpdateScan")

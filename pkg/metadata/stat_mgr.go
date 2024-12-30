@@ -99,7 +99,7 @@ func (sm *StatMgrImpl) calcTableStats(tableName string, layout record.Layout, tx
 	var numRecs, numBlocks int
 	for ts.Next() {
 		numRecs++
-		numBlocks = ts.GetRid().BlockNumber() + 1
+		numBlocks = ts.GetRID().BlockNumber() + 1
 	}
 	return NewStatInfo(numBlocks, numRecs), nil
 }
