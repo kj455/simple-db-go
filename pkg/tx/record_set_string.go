@@ -1,11 +1,10 @@
-package transaction
+package tx
 
 import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 /*
@@ -51,7 +50,7 @@ func (r *SetStringRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *SetStringRecord) Undo(tx tx.Transaction) error {
+func (r *SetStringRecord) Undo(tx Transaction) error {
 	if err := tx.Pin(r.block); err != nil {
 		return err
 	}

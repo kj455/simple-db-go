@@ -8,7 +8,7 @@ import (
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/record"
 	"github.com/kj455/simple-db/pkg/testutil"
-	"github.com/kj455/simple-db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/tx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,8 +28,8 @@ func TestStatMgr(t *testing.T) {
 		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
 	bufferMgr := buffer.NewBufferMgr(buffs, buffer.WithMaxWaitTime(0))
-	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
+	txNumGen := tx.NewTxNumberGenerator()
+	tx, err := tx.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
 	assert.NoError(t, err)
 	tblMgr, err := NewTableMgr(tx)
 	assert.NoError(t, err)

@@ -1,11 +1,10 @@
-package transaction
+package tx
 
 import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type CommitRecord struct {
@@ -28,7 +27,7 @@ func (r *CommitRecord) TxNum() int {
 	return r.txNum
 }
 
-func (r *CommitRecord) Undo(tx tx.Transaction) error {
+func (r *CommitRecord) Undo(tx Transaction) error {
 	return nil
 }
 

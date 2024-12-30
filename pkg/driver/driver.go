@@ -13,7 +13,6 @@ import (
 	"github.com/kj455/simple-db/pkg/plan"
 	"github.com/kj455/simple-db/pkg/query"
 	"github.com/kj455/simple-db/pkg/tx"
-	"github.com/kj455/simple-db/pkg/tx/transaction"
 )
 
 func init() {
@@ -58,8 +57,8 @@ func NewConn(name string) (*Conn, error) {
 		buffs[i] = buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	}
 	bm := buffer.NewBufferMgr(buffs)
-	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fileMgr, logMgr, bm, txNumGen)
+	txNumGen := tx.NewTxNumberGenerator()
+	tx, err := tx.NewTransaction(fileMgr, logMgr, bm, txNumGen)
 	if err != nil {
 		return nil, fmt.Errorf("driver: failed to create transaction: %v", err)
 	}

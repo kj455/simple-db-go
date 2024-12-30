@@ -9,7 +9,7 @@ import (
 	"github.com/kj455/simple-db/pkg/metadata"
 	"github.com/kj455/simple-db/pkg/record"
 	"github.com/kj455/simple-db/pkg/testutil"
-	"github.com/kj455/simple-db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/tx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,8 +29,8 @@ func TestProductScan(t *testing.T) {
 		buffs[i] = buffer.NewBuffer(fm, lm, blockSize)
 	}
 	bm := buffer.NewBufferMgr(buffs)
-	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	txNumGen := tx.NewTxNumberGenerator()
+	tx, err := tx.NewTransaction(fm, lm, bm, txNumGen)
 	assert.NoError(t, err)
 	_, err = metadata.NewMetadataMgr(tx)
 	assert.NoError(t, err)

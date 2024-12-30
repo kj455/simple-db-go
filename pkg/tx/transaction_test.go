@@ -1,4 +1,4 @@
-package transaction
+package tx
 
 import (
 	"sync"
@@ -9,7 +9,6 @@ import (
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
-	"github.com/kj455/simple-db/pkg/tx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -95,9 +94,9 @@ func TestTransaction_Concurrency(t *testing.T) {
 	blk2 := file.NewBlockId(testFileName, 2)
 
 	wg := &sync.WaitGroup{}
-	var A, B, C func(*testing.T, file.FileMgr, log.LogMgr, buffer.BufferMgr, tx.TxNumberGenerator)
+	var A, B, C func(*testing.T, file.FileMgr, log.LogMgr, buffer.BufferMgr, TxNumberGenerator)
 	wg.Add(3)
-	A = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, tng tx.TxNumberGenerator) {
+	A = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, tng TxNumberGenerator) {
 		txA, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txA.Pin(blk1)
 		txA.Pin(blk2)
@@ -117,7 +116,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 		t.Log("Tx A: commit")
 		wg.Done()
 	}
-	B = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen tx.TxNumberGenerator) {
+	B = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen TxNumberGenerator) {
 		txB, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txB.Pin(blk1)
 		txB.Pin(blk2)
@@ -137,7 +136,7 @@ func TestTransaction_Concurrency(t *testing.T) {
 		t.Log("Tx B: commit")
 		wg.Done()
 	}
-	C = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen tx.TxNumberGenerator) {
+	C = func(t *testing.T, fm file.FileMgr, lm log.LogMgr, bm buffer.BufferMgr, txNumGen TxNumberGenerator) {
 		txC, _ := NewTransaction(fm, lm, bm, txNumGen)
 		txC.Pin(blk1)
 		txC.Pin(blk2)

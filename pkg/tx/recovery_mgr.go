@@ -1,21 +1,20 @@
-package transaction
+package tx
 
 import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/buffer"
 	"github.com/kj455/simple-db/pkg/log"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type RecoveryMgrImpl struct {
 	logMgr log.LogMgr
 	bufMgr buffer.BufferMgr
-	tx     tx.Transaction
+	tx     Transaction
 	txNum  int
 }
 
-func NewRecoveryMgr(tx tx.Transaction, txNum int, lm log.LogMgr, bm buffer.BufferMgr) (*RecoveryMgrImpl, error) {
+func NewRecoveryMgr(tx Transaction, txNum int, lm log.LogMgr, bm buffer.BufferMgr) (*RecoveryMgrImpl, error) {
 	rm := &RecoveryMgrImpl{
 		logMgr: lm,
 		bufMgr: bm,

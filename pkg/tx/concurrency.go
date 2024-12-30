@@ -1,10 +1,9 @@
-package transaction
+package tx
 
 import (
 	"fmt"
 
 	"github.com/kj455/simple-db/pkg/file"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type LockType string
@@ -20,7 +19,7 @@ const (
 3. Release all locks after a commit or rollback.
 */
 type ConcurrencyMgrImpl struct {
-	l     tx.Lock
+	l     Lock
 	Locks map[file.BlockId]LockType
 }
 

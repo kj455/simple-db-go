@@ -1,10 +1,9 @@
-package transaction
+package tx
 
 import (
 	"errors"
 
 	"github.com/kj455/simple-db/pkg/file"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type Op int
@@ -26,7 +25,7 @@ const (
 type LogRecord interface {
 	Op() Op
 	TxNum() int
-	Undo(tx tx.Transaction) error
+	Undo(tx Transaction) error
 }
 
 func NewLogRecord(bytes []byte) (LogRecord, error) {

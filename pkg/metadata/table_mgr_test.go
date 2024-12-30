@@ -8,7 +8,7 @@ import (
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/record"
 	"github.com/kj455/simple-db/pkg/testutil"
-	"github.com/kj455/simple-db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/tx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,8 +27,8 @@ func TestTableMgr(t *testing.T) {
 	buff2 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	buff3 := buffer.NewBuffer(fileMgr, logMgr, blockSize)
 	bufferMgr := buffer.NewBufferMgr([]buffer.Buffer{buff1, buff2, buff3})
-	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
+	txNumGen := tx.NewTxNumberGenerator()
+	tx, err := tx.NewTransaction(fileMgr, logMgr, bufferMgr, txNumGen)
 	assert.NoError(t, err)
 
 	tblMgr, err := NewTableMgr(tx)

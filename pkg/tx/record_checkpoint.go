@@ -1,9 +1,8 @@
-package transaction
+package tx
 
 import (
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 const dummyTxNum = -1
@@ -22,7 +21,7 @@ func (r *CheckpointRecord) TxNum() int {
 	return dummyTxNum
 }
 
-func (r *CheckpointRecord) Undo(tx tx.Transaction) error {
+func (r *CheckpointRecord) Undo(tx Transaction) error {
 	return nil
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/kj455/simple-db/pkg/file"
 	"github.com/kj455/simple-db/pkg/log"
 	"github.com/kj455/simple-db/pkg/testutil"
-	"github.com/kj455/simple-db/pkg/tx/transaction"
+	"github.com/kj455/simple-db/pkg/tx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,8 +27,8 @@ func TestTableScan(t *testing.T) {
 	buff := buffer.NewBuffer(fm, lm, blockSize)
 	buff2 := buffer.NewBuffer(fm, lm, blockSize)
 	bm := buffer.NewBufferMgr([]buffer.Buffer{buff, buff2})
-	txNumGen := transaction.NewTxNumberGenerator()
-	tx, err := transaction.NewTransaction(fm, lm, bm, txNumGen)
+	txNumGen := tx.NewTxNumberGenerator()
+	tx, err := tx.NewTransaction(fm, lm, bm, txNumGen)
 	assert.NoError(t, err)
 
 	sch := NewSchema()

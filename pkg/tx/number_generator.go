@@ -1,10 +1,8 @@
-package transaction
+package tx
 
 import (
 	"sync"
 	"sync/atomic"
-
-	"github.com/kj455/simple-db/pkg/tx"
 )
 
 type TxNumberGeneratorImpl struct {
@@ -12,10 +10,10 @@ type TxNumberGeneratorImpl struct {
 	next int32
 }
 
-var txNumGen tx.TxNumberGenerator
+var txNumGen TxNumberGenerator
 
-// NewTxNumberGenerator returns singleton instance of tx.TxNumberGenerator
-func NewTxNumberGenerator() tx.TxNumberGenerator {
+// NewTxNumberGenerator returns singleton instance of TxNumberGenerator
+func NewTxNumberGenerator() TxNumberGenerator {
 	if txNumGen == nil {
 		txNumGen = &TxNumberGeneratorImpl{}
 	}
