@@ -19,12 +19,15 @@ type FileMgrImpl struct {
 
 func NewFileMgr(dbDir string, blockSize int) *FileMgrImpl {
 	_, err := os.Stat(dbDir)
-	fileExists := !os.IsNotExist(err)
+	notExists := os.IsNotExist(err)
+	if notExists {
+		_ = os.MkdirAll(dbDir, 0755)
+	}
 
 	return &FileMgrImpl{
 		dbDir:     dbDir,
 		blockSize: blockSize,
-		isNew:     fileExists,
+		isNew:     notExists,
 		openFiles: make(map[string]*os.File),
 	}
 }

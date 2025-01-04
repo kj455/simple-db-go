@@ -5,46 +5,45 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kj455/simple-db/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewFileMgr(t *testing.T) {
 	t.Parallel()
-	const (
-		dbDir     = "test"
-		blockSize = 4096
-	)
+	const blockSize = 4096
 	t.Run("new", func(t *testing.T) {
 		t.Parallel()
+		dbDir := "test_new_file_mgr_new"
 		mgr := NewFileMgr(dbDir, blockSize)
+		t.Cleanup(func() {
+			os.RemoveAll(dbDir)
+		})
 		assert.Equal(t, dbDir, mgr.dbDir)
 		assert.Equal(t, blockSize, mgr.blockSize)
-		assert.False(t, mgr.isNew)
+		assert.True(t, mgr.isNew)
 	})
 	t.Run("existing", func(t *testing.T) {
 		t.Parallel()
-		os.Mkdir(dbDir, 0755)
-		defer os.RemoveAll(dbDir)
-		mgr := NewFileMgr(dbDir, blockSize)
-		assert.True(t, mgr.isNew)
+		dir, cleanup := testutil.SetupDir("test_new_file_mgr_existing")
+		t.Cleanup(cleanup)
+		mgr := NewFileMgr(dir, blockSize)
+		assert.False(t, mgr.isNew)
 	})
 }
 
 func TestFileMgr_Read(t *testing.T) {
 	t.Parallel()
-	const (
-		blockSize = 4096
-		dbDir     = "test"
-	)
+	const blockSize = 4096
+	dbDir, cleanup := testutil.SetupDir("test_new_file_mgr_read")
+	t.Cleanup(cleanup)
 	mgr := NewFileMgr(dbDir, blockSize)
 
 	setupFile := func(fileName string) (f *os.File, cleanup func()) {
 		testFilepath := filepath.Join(dbDir, fileName)
-		os.Mkdir(dbDir, 0755)
 		f, err := os.Create(testFilepath)
 		assert.NoError(t, err)
 		cleanup = func() {
-			os.RemoveAll(dbDir)
 			os.Remove(testFilepath)
 		}
 		return f, cleanup
