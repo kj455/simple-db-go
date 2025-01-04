@@ -9,19 +9,8 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-func RandomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
 func main() {
-	const (
-		driverName = "simple"
-	)
+	const driverName = "simple"
 	dataSourceName := RandomString(30)
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
@@ -77,4 +66,13 @@ func main() {
 		log.Printf("Matched: A=%d, B=%s\n", a, b)
 	}
 	log.Println("Done.")
+}
+
+func RandomString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
