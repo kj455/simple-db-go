@@ -1,6 +1,9 @@
 # simple-db-go
 
-TODO: how to use this DB
+Go implementation of "SimpleDB" from "Database Design and Implementation" by Edward Sciore.([Amazon link](https://www.amazon.co.jp/dp/3030338355))
+
+## Usage
+Refer to [playground](./playground/main.go)!
 
 ## TODO
 
